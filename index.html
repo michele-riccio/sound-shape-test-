@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sound-Shape Test Lab</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a; --bg2: #111; --bg3: #1a1a1a;
+    --border: #222; --text: #eee; --text2: #999; --text3: #555;
+    --accent: #f59e0b; --accent-hover: #fbbf24; --accent-dark: #b45309;
+    --danger: #ef4444;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    height: 100vh; overflow: hidden; display: flex;
+  }
+
+  /* ─── Left Panel ─── */
+  .panel {
+    width: 330px; min-width: 330px; background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .panel::-webkit-scrollbar { width: 5px; }
+  .panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+  .panel-section {
+    padding: 18px 20px; border-bottom: 1px solid var(--border);
+  }
+
+  .panel-header h1 {
+    font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px;
+  }
+  .panel-header h1 span { color: var(--accent); }
+  .panel-header p { font-size: 0.7rem; color: var(--text3); margin-top: 4px; }
+
+  /* Upload */
+  .upload-zone {
+    margin-top: 10px; border: 2px dashed #333; border-radius: 10px;
+    padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .upload-zone:hover { border-color: #555; }
+  .upload-zone.dragging { border-color: var(--accent); background: rgba(245,158,11,0.08); }
+  .upload-zone .label { font-size: 0.85rem; color: #aaa; }
+  .upload-zone .sub { font-size: 0.7rem; color: var(--text3); margin-top: 4px; }
+  .upload-zone .filename { font-size: 0.85rem; color: var(--text); }
+
+  .waveform-container { margin-top: 10px; }
+  .waveform-container canvas { width: 100%; height: 44px; border-radius: 6px; display: block; }
+  .demo-label { font-size: 0.65rem; color: var(--text3); text-align: center; margin-top: 5px; font-style: italic; }
+
+  /* Section labels */
+  .section-label {
+    font-size: 0.65rem; font-weight: 600; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;
+  }
+
+  /* Mode toggle */
+  .mode-toggle { display: flex; gap: 4px; margin-bottom: 6px; }
+  .mode-btn {
+    flex: 1; padding: 7px; border: none; border-radius: 6px; font-size: 0.75rem;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    background: var(--bg3); color: var(--text2);
+  }
+  .mode-btn.active { background: var(--accent); color: #000; }
+  .mode-btn:not(.active):hover { background: #252525; }
+  .mode-desc { font-size: 0.6rem; color: var(--text3); margin-bottom: 14px; }
+
+  /* Sliders */
+  .slider-group { margin-bottom: 12px; }
+  .slider-header { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px; }
+  .slider-header .label { color: var(--text2); }
+  .slider-header .value { color: #ccc; font-family: 'SF Mono', 'Fira Code', monospace; }
+  .slider-header .unit { color: var(--text3); margin-left: 2px; }
+
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 5px;
+    background: #2a2a2a; border-radius: 3px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: none;
+  }
+
+  /* Checkbox */
+  .check-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.75rem; color: var(--text2); cursor: pointer;
+  }
+  .check-row input { accent-color: var(--accent); }
+
+  /* Download area */
+  .download-section { padding: 18px 20px; margin-top: auto; }
+  .stl-info { font-size: 0.7rem; color: var(--text3); margin-bottom: 10px; line-height: 1.6; }
+  .download-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 10px;
+    font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    background: var(--accent); color: #000;
+  }
+  .download-btn:hover { background: var(--accent-hover); }
+  .download-btn:active { background: var(--accent-dark); }
+  .download-btn:disabled { background: #222; color: #555; cursor: not-allowed; }
+  .download-hint { font-size: 0.6rem; color: var(--text3); text-align: center; margin-top: 8px; }
+
+  /* ─── Right Panel: 3D ─── */
+  .viewport { flex: 1; position: relative; }
+  .viewport canvas { display: block; }
+
+  .viewport-hint {
+    position: absolute; top: 14px; right: 16px;
+    font-size: 0.7rem; color: var(--text3); pointer-events: none;
+  }
+  .viewport-warning {
+    position: absolute; bottom: 16px; left: 16px; right: 16px;
+    background: rgba(153,27,27,0.85); color: #fca5a5; font-size: 0.75rem;
+    padding: 10px 14px; border-radius: 8px;
+  }
+
+  .loading-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; background: var(--bg); color: var(--text2);
+    font-size: 1rem; z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<!-- Left Panel -->
+<div class="panel">
+  <!-- Header -->
+  <div class="panel-section panel-header">
+    <h1><span>&#9836;</span> Sound-Shape Test Lab</h1>
+    <p>Audio &rarr; 3D Lamp &rarr; STL &rarr; Bambu Lab</p>
+  </div>
+
+  <!-- Audio Upload -->
+  <div class="panel-section">
+    <div class="section-label">Audio</div>
+    <div class="upload-zone" id="uploadZone">
+      <div class="label" id="uploadLabel">Trascina audio qui o clicca</div>
+      <div class="sub" id="uploadSub">WAV, MP3, OGG, AAC, M4A</div>
+    </div>
+    <input type="file" id="fileInput" accept="audio/*" style="display:none">
+    <div class="waveform-container">
+      <canvas id="waveformCanvas" width="290" height="44"></canvas>
+    </div>
+    <div class="demo-label" id="demoLabel">Audio demo sintetico</div>
+  </div>
+
+  <!-- Parameters -->
+  <div class="panel-section">
+    <div class="section-label">Parametri</div>
+
+    <!-- Mode -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="vase" id="btnVase">Vase Mode</button>
+      <button class="mode-btn" data-mode="litho" id="btnLitho">Lithophane</button>
+    </div>
+    <div class="mode-desc" id="modeDesc">Raggio modulato dall'audio — stampa rapida (~40min)</div>
+
+    <!-- Sliders -->
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="label">Altezza</span>
+        <span><span class="value" id="valHeight">120</span><span class="unit">mm</span></span>
+      </div>
+      <input type="range" id="slHeight" min="60" max="180" step="5" value="120">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="label">Diametro</span>
+        <span><span class="value" id="valDiameter">80</span><span class="unit">mm</span></span>
+      </div>
+      <input type="range" id="slDiameter" min="50" max="160" step="5" value="80">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="label">Ampiezza audio</span>
+        <span><span class="value" id="valAmplitude">4</span><span class="unit">mm</span></span>
+      </div>
+      <input type="range" id="slAmplitude" min="0.5" max="10" step="0.5" value="4">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="label">Segmenti</span>
+        <span class="value" id="valSegments">80</span>
+      </div>
+      <input type="range" id="slSegments" min="32" max="128" step="8" value="80">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="label">Layers</span>
+        <span class="value" id="valLayers">200</span>
+      </div>
+      <input type="range" id="slLayers" min="80" max="400" step="20" value="200">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="label">Spessore parete</span>
+        <span><span class="value" id="valWall">2</span><span class="unit">mm</span></span>
+      </div>
+      <input type="range" id="slWall" min="0.8" max="4" step="0.2" value="2">
+    </div>
+  </div>
+
+  <!-- View options -->
+  <div class="panel-section">
+    <label class="check-row">
+      <input type="checkbox" id="chkLight">
+      Mostra luce interna (simulazione LED)
+    </label>
+  </div>
+
+  <!-- Download -->
+  <div class="download-section">
+    <div class="stl-info" id="stlInfo">Carica audio o usa il demo per iniziare</div>
+    <button class="download-btn" id="btnDownload">Scarica STL per Bambu Studio</button>
+    <div class="download-hint">Importa in Bambu Studio &rarr; abilita Spiral Vase Mode &rarr; stampa</div>
+  </div>
+</div>
+
+<!-- 3D Viewport -->
+<div class="viewport" id="viewport">
+  <div class="viewport-hint">Scroll = zoom &mdash; Drag = ruota</div>
+  <div class="viewport-warning" id="sizeWarning" style="display:none">
+    Attenzione: le dimensioni superano il volume di stampa dell'A1 Mini (180&times;180&times;180mm)
+  </div>
+</div>
+
+<!-- Three.js from CDN -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIO PROCESSING
+// ═══════════════════════════════════════════════════════════════
+
+function gaussianSmooth(data, passes) {
+  let result = [...data]
+  for (let p = 0; p < passes; p++) {
+    const s = []
+    for (let i = 0; i < result.length; i++) {
+      const prev = i > 0 ? result[i-1] : result[i]
+      const next = i < result.length-1 ? result[i+1] : result[i]
+      s.push(prev * 0.25 + result[i] * 0.5 + next * 0.25)
+    }
+    result = s
+  }
+  return result
+}
+
+function resample(data, len) {
+  if (!data.length) return new Array(len).fill(0)
+  if (data.length === len) return [...data]
+  const out = []
+  for (let i = 0; i < len; i++) {
+    const p = (i / (len-1)) * (data.length-1)
+    const lo = Math.floor(p), hi = Math.min(lo+1, data.length-1)
+    out.push(data[lo] * (1 - (p-lo)) + data[hi] * (p-lo))
+  }
+  return out
+}
+
+async function processAudioFile(file) {
+  const buf = await file.arrayBuffer()
+  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  let audioBuffer
+  try { audioBuffer = await ctx.decodeAudioData(buf) }
+  finally { ctx.close() }
+
+  const ch = audioBuffer.getChannelData(0)
+  const sr = audioBuffer.sampleRate
+
+  // RMS envelope
+  const winSize = Math.floor(sr * 0.05)
+  const hop = Math.floor(winSize / 2)
+  const raw = []
+  for (let i = 0; i < ch.length - winSize; i += hop) {
+    let sum = 0
+    for (let j = 0; j < winSize; j++) sum += ch[i+j] ** 2
+    raw.push(Math.sqrt(sum / winSize))
+  }
+  const mx = Math.max(...raw, 1e-10)
+  const norm = raw.map(v => v / mx)
+  const envelope = gaussianSmooth(norm, 3)
+
+  // Display waveform
+  const pts = Math.min(2000, ch.length)
+  const step = Math.floor(ch.length / pts)
+  const wave = []
+  for (let i = 0; i < pts; i++) {
+    let maxAbs = 0
+    const s = i * step, e = Math.min(s + step, ch.length)
+    for (let j = s; j < e; j++) { const a = Math.abs(ch[j]); if (a > maxAbs) maxAbs = a }
+    wave.push(maxAbs)
+  }
+  const wmx = Math.max(...wave, 1e-10)
+
+  return { envelope, waveform: wave.map(v => v/wmx), duration: audioBuffer.duration }
+}
+
+function generateSyntheticAudio(n = 500) {
+  const envelope = [], waveform = []
+  for (let i = 0; i < n; i++) {
+    const t = i / n
+    const val = 0.3*Math.sin(t*Math.PI*6) + 0.25*Math.sin(t*Math.PI*14+1)
+      + 0.2*Math.sin(t*Math.PI*22+2.5) + 0.15*Math.cos(t*Math.PI*3)
+      + 0.1*(Math.random()*0.5)
+    const fade = Math.min(t*5, 1) * Math.min((1-t)*5, 1)
+    envelope.push(Math.max(0, Math.min(1, (val*0.5+0.5) * fade)))
+    waveform.push(Math.sin(t*Math.PI*20) * envelope[i])
+  }
+  return { envelope, waveform, duration: 10 }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LAMP GEOMETRY
+// ═══════════════════════════════════════════════════════════════
+
+function createLampGeometry(envelope, params) {
+  const { mode, height, diameter, amplitude, wallThickness, segments, layers, flatZone=3, baseFitHeight=5 } = params
+  const radius = diameter / 2
+  const profile = resample(envelope, layers + 1)
+  const segs = segments
+  const ring = segs + 1
+
+  const outerPos = [], innerPos = []
+
+  for (let l = 0; l <= layers; l++) {
+    const t = l / layers
+    const y = t * height
+
+    let flat = 1.0
+    if (y < flatZone) flat = y / flatZone
+    else if (y > height - flatZone) flat = (height - y) / flatZone
+    flat = Math.max(0, Math.min(1, flat))
+
+    let baseFit = 0
+    if (y < baseFitHeight) baseFit = 1.0 - y / baseFitHeight
+
+    const audioVal = profile[l]
+
+    for (let s = 0; s <= segs; s++) {
+      const angle = (s / segs) * Math.PI * 2
+
+      if (mode === 'vase') {
+        // Vase: radius modulated by audio
+        const deform = audioVal * amplitude * flat * (1 - baseFit)
+        const angVar = (Math.sin(angle*3 + t*Math.PI*6)*0.4 + Math.sin(angle*7 + t*Math.PI*2)*0.2) * flat * (1-baseFit)
+        const rO = radius + deform + angVar
+        const rI = rO - wallThickness
+
+        outerPos.push(Math.cos(angle)*rO, y, Math.sin(angle)*rO)
+        innerPos.push(Math.cos(angle)*rI, y, Math.sin(angle)*rI)
+      } else {
+        // Lithophane: smooth outer, modulated inner wall thickness
+        const rO = baseFit > 0 ? radius : radius
+        const audioPos = (t * 0.75 + (s/segs) * 0.25) % 1.0
+        const envIdx = Math.floor(audioPos * (profile.length - 1))
+        const aVal = profile[envIdx]
+        const detail = Math.sin(angle*12 + t*Math.PI*20)*0.15 + Math.sin(angle*5 - t*Math.PI*8)*0.1
+        const mod = (aVal + detail) * flat * (1 - baseFit)
+        const minW = 0.8, maxW = 3.0
+        const wall = minW + (maxW - minW) * (1 - mod)
+        const rI = rO - Math.max(minW, Math.min(maxW, wall))
+
+        outerPos.push(Math.cos(angle)*rO, y, Math.sin(angle)*rO)
+        innerPos.push(Math.cos(angle)*rI, y, Math.sin(angle)*rI)
+      }
+    }
+  }
+
+  // Build mesh
+  const positions = []
+  const indices = []
+
+  // Outer surface
+  for (let i = 0; i < outerPos.length; i++) positions.push(outerPos[i])
+  for (let l = 0; l < layers; l++) {
+    for (let s = 0; s < segs; s++) {
+      const a = l*ring+s, b = a+1, c = (l+1)*ring+s, d = c+1
+      indices.push(a,c,b, b,c,d)
+    }
+  }
+
+  // Inner surface (reversed)
+  const innerOff = outerPos.length / 3
+  for (let i = 0; i < innerPos.length; i++) positions.push(innerPos[i])
+  for (let l = 0; l < layers; l++) {
+    for (let s = 0; s < segs; s++) {
+      const a = innerOff+l*ring+s, b = a+1, c = innerOff+(l+1)*ring+s, d = c+1
+      indices.push(a,b,c, b,d,c)
+    }
+  }
+
+  // Bottom cap
+  for (let s = 0; s < segs; s++) {
+    indices.push(s, s+1, innerOff+s)
+    indices.push(s+1, innerOff+s+1, innerOff+s)
+  }
+
+  // Top cap
+  const topO = layers*ring, topI = innerOff + layers*ring
+  for (let s = 0; s < segs; s++) {
+    indices.push(topO+s, topI+s, topO+s+1)
+    indices.push(topO+s+1, topI+s, topI+s+1)
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geo.setIndex(indices)
+  geo.computeVertexNormals()
+  return geo
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STL EXPORT
+// ═══════════════════════════════════════════════════════════════
+
+function exportSTL(geometry) {
+  const geo = geometry.index ? geometry.toNonIndexed() : geometry.clone()
+  const pos = geo.getAttribute('position')
+  const nTri = pos.count / 3
+  const bufSize = 84 + nTri * 50
+  const buf = new ArrayBuffer(bufSize)
+  const dv = new DataView(buf)
+
+  const hdr = 'Sound-Shape Test Lab — binary STL'
+  for (let i = 0; i < 80; i++) dv.setUint8(i, i < hdr.length ? hdr.charCodeAt(i) : 0)
+  dv.setUint32(80, nTri, true)
+
+  let off = 84
+  for (let i = 0; i < nTri; i++) {
+    const i3 = i * 3
+    const ax=pos.getX(i3), ay=pos.getY(i3), az=pos.getZ(i3)
+    const bx=pos.getX(i3+1), by=pos.getY(i3+1), bz=pos.getZ(i3+1)
+    const cx=pos.getX(i3+2), cy=pos.getY(i3+2), cz=pos.getZ(i3+2)
+    const ux=bx-ax, uy=by-ay, uz=bz-az, vx=cx-ax, vy=cy-ay, vz=cz-az
+    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz)
+    if (len > 1e-10) { nx/=len; ny/=len; nz/=len }
+
+    dv.setFloat32(off, nx, true); off+=4
+    dv.setFloat32(off, ny, true); off+=4
+    dv.setFloat32(off, nz, true); off+=4
+    dv.setFloat32(off, ax, true); off+=4
+    dv.setFloat32(off, ay, true); off+=4
+    dv.setFloat32(off, az, true); off+=4
+    dv.setFloat32(off, bx, true); off+=4
+    dv.setFloat32(off, by, true); off+=4
+    dv.setFloat32(off, bz, true); off+=4
+    dv.setFloat32(off, cx, true); off+=4
+    dv.setFloat32(off, cy, true); off+=4
+    dv.setFloat32(off, cz, true); off+=4
+    dv.setUint16(off, 0, true); off+=2
+  }
+
+  return new Blob([buf], { type: 'application/octet-stream' })
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename
+  document.body.appendChild(a); a.click()
+  document.body.removeChild(a); URL.revokeObjectURL(url)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// THREE.JS SCENE
+// ═══════════════════════════════════════════════════════════════
+
+const viewport = document.getElementById('viewport')
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x0a0a0a)
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 2000)
+camera.position.set(0, 80, 200)
+
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMappingExposure = 1.2
+renderer.shadowMap.enabled = true
+viewport.appendChild(renderer.domElement)
+
+const controls = new OrbitControls(camera, renderer.domElement)
+controls.enableDamping = true
+controls.dampingFactor = 0.05
+controls.target.set(0, 60, 0)
+
+// Lights
+const ambLight = new THREE.AmbientLight(0xffffff, 0.35)
+scene.add(ambLight)
+
+const dirLight1 = new THREE.DirectionalLight(0xfff5e6, 1.0)
+dirLight1.position.set(100, 200, 100)
+scene.add(dirLight1)
+
+const dirLight2 = new THREE.DirectionalLight(0xe6f0ff, 0.4)
+dirLight2.position.set(-80, 100, -60)
+scene.add(dirLight2)
+
+// Inner LED light (togglable)
+const ledLight = new THREE.PointLight(0xffcc66, 0, 200)
+ledLight.position.set(0, 15, 0)
+scene.add(ledLight)
+
+const ledBulb = new THREE.Mesh(
+  new THREE.SphereGeometry(3, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffdd88 })
+)
+ledBulb.position.set(0, 15, 0)
+ledBulb.visible = false
+scene.add(ledBulb)
+
+// Base platform
+const baseMesh = new THREE.Mesh(
+  new THREE.CylinderGeometry(45, 48, 2, 64),
+  new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.8 })
+)
+baseMesh.position.y = -1
+scene.add(baseMesh)
+
+// Grid
+const grid = new THREE.GridHelper(400, 40, 0x1a1a1a, 0x141414)
+grid.position.y = -2
+scene.add(grid)
+
+// Lamp mesh
+let lampMesh = null
+const vaseMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0xf0e0c0, side: THREE.DoubleSide, roughness: 0.35, metalness: 0
+})
+const lithoMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0xe8d5b7, side: THREE.DoubleSide, roughness: 0.4, metalness: 0
+})
+
+function updateLampMesh(geometry, params) {
+  if (lampMesh) { scene.remove(lampMesh); lampMesh.geometry.dispose() }
+  const mat = params.mode === 'litho' ? lithoMaterial : vaseMaterial
+  lampMesh = new THREE.Mesh(geometry, mat)
+  scene.add(lampMesh)
+
+  // Update camera target to lamp center
+  controls.target.set(0, params.height / 2, 0)
+
+  // Update base size
+  baseMesh.geometry.dispose()
+  baseMesh.geometry = new THREE.CylinderGeometry(
+    params.diameter/2 + 5, params.diameter/2 + 8, 2, 64
+  )
+
+  // Update LED position
+  ledLight.position.y = params.height * 0.15
+  ledBulb.position.y = params.height * 0.15
+  ledLight.distance = params.diameter * 2
+}
+
+// Resize
+function onResize() {
+  const w = viewport.clientWidth, h = viewport.clientHeight
+  camera.aspect = w / h
+  camera.updateProjectionMatrix()
+  renderer.setSize(w, h)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+}
+window.addEventListener('resize', onResize)
+onResize()
+
+// Animate
+function animate() {
+  requestAnimationFrame(animate)
+  controls.update()
+  renderer.render(scene, camera)
+}
+animate()
+
+// ═══════════════════════════════════════════════════════════════
+// UI LOGIC
+// ═══════════════════════════════════════════════════════════════
+
+let audioData = null
+let currentGeometry = null
+let audioFileName = null
+
+const params = {
+  mode: 'vase', height: 120, diameter: 80, amplitude: 4,
+  wallThickness: 2, segments: 80, layers: 200
+}
+
+// Waveform display
+function drawWaveform(waveform) {
+  const canvas = document.getElementById('waveformCanvas')
+  const ctx = canvas.getContext('2d')
+  const w = canvas.width, h = canvas.height
+  ctx.clearRect(0, 0, w, h)
+  ctx.fillStyle = '#1a1a1a'
+  ctx.fillRect(0, 0, w, h)
+
+  const step = waveform.length / w
+  ctx.beginPath()
+  ctx.strokeStyle = '#f59e0b'
+  ctx.lineWidth = 1
+  for (let x = 0; x < w; x++) {
+    const val = waveform[Math.min(Math.floor(x * step), waveform.length-1)]
+    ctx.moveTo(x, h/2 - val * h/2 * 0.9)
+    ctx.lineTo(x, h/2 + val * h/2 * 0.9)
+  }
+  ctx.stroke()
+
+  ctx.beginPath()
+  ctx.strokeStyle = '#333'
+  ctx.lineWidth = 0.5
+  ctx.moveTo(0, h/2)
+  ctx.lineTo(w, h/2)
+  ctx.stroke()
+}
+
+// Regenerate geometry
+let rebuildTimeout = null
+function scheduleRebuild() {
+  clearTimeout(rebuildTimeout)
+  rebuildTimeout = setTimeout(rebuild, 80) // debounce 80ms
+}
+
+function rebuild() {
+  if (!audioData) return
+  currentGeometry = createLampGeometry(audioData.envelope, params)
+  updateLampMesh(currentGeometry, params)
+  updateSTLInfo()
+  updateSizeWarning()
+}
+
+function updateSTLInfo() {
+  if (!currentGeometry) return
+  const geo = currentGeometry.index ? currentGeometry.toNonIndexed() : currentGeometry
+  const tri = geo.getAttribute('position').count / 3
+  const mb = ((84 + tri * 50) / (1024 * 1024)).toFixed(2)
+  document.getElementById('stlInfo').innerHTML =
+    `Triangoli: ${tri.toLocaleString()}<br>File STL: ~${mb} MB<br>Build: ${params.diameter}&times;${params.diameter}&times;${params.height} mm`
+}
+
+function updateSizeWarning() {
+  const warn = document.getElementById('sizeWarning')
+  warn.style.display = (params.diameter > 170 || params.height > 170) ? 'block' : 'none'
+}
+
+// --- Upload handling ---
+const uploadZone = document.getElementById('uploadZone')
+const fileInput = document.getElementById('fileInput')
+
+uploadZone.addEventListener('click', () => fileInput.click())
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragging') })
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragging'))
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault()
+  uploadZone.classList.remove('dragging')
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0])
+})
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]) })
+
+async function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase()
+  const ok = ['wav','mp3','ogg','aac','m4a','flac','webm']
+  if (!ok.includes(ext)) { alert('Formato non supportato. Usa WAV, MP3, OGG, AAC, M4A.'); return }
+
+  document.getElementById('uploadLabel').textContent = 'Analizzando audio...'
+  document.getElementById('uploadSub').textContent = ''
+
+  try {
+    audioData = await processAudioFile(file)
+    audioFileName = file.name
+    document.getElementById('uploadLabel').innerHTML = `<span class="filename">${file.name}</span>`
+    document.getElementById('uploadSub').textContent = `${audioData.duration.toFixed(1)}s — Clicca per cambiare`
+    document.getElementById('demoLabel').textContent = ''
+    drawWaveform(audioData.waveform)
+    rebuild()
+  } catch (err) {
+    console.error(err)
+    alert('Errore nel processare l\'audio: ' + err.message)
+    document.getElementById('uploadLabel').textContent = 'Trascina audio qui o clicca'
+    document.getElementById('uploadSub').textContent = 'WAV, MP3, OGG, AAC, M4A'
+  }
+}
+
+// --- Mode toggle ---
+document.getElementById('btnVase').addEventListener('click', () => {
+  params.mode = 'vase'
+  document.getElementById('btnVase').classList.add('active')
+  document.getElementById('btnLitho').classList.remove('active')
+  document.getElementById('modeDesc').textContent = 'Raggio modulato dall\'audio — stampa rapida (~40min)'
+  scheduleRebuild()
+})
+document.getElementById('btnLitho').addEventListener('click', () => {
+  params.mode = 'litho'
+  document.getElementById('btnLitho').classList.add('active')
+  document.getElementById('btnVase').classList.remove('active')
+  document.getElementById('modeDesc').textContent = 'Spessore parete modulato — pattern visibile in controluce (~8h)'
+  scheduleRebuild()
+})
+
+// --- Sliders ---
+function bindSlider(id, key, valId, isFloat) {
+  const sl = document.getElementById(id)
+  sl.addEventListener('input', () => {
+    const v = isFloat ? parseFloat(sl.value) : parseInt(sl.value)
+    params[key] = v
+    document.getElementById(valId).textContent = v
+    scheduleRebuild()
+  })
+}
+bindSlider('slHeight', 'height', 'valHeight', false)
+bindSlider('slDiameter', 'diameter', 'valDiameter', false)
+bindSlider('slAmplitude', 'amplitude', 'valAmplitude', true)
+bindSlider('slSegments', 'segments', 'valSegments', false)
+bindSlider('slLayers', 'layers', 'valLayers', false)
+bindSlider('slWall', 'wallThickness', 'valWall', true)
+
+// --- LED toggle ---
+document.getElementById('chkLight').addEventListener('change', e => {
+  const on = e.target.checked
+  ledLight.intensity = on ? 300 : 0
+  ledBulb.visible = on
+  vaseMaterial.transmission = on ? 0.4 : 0
+  vaseMaterial.transparent = on
+  vaseMaterial.opacity = on ? 0.8 : 1
+  lithoMaterial.transmission = on ? 0.5 : 0
+  lithoMaterial.transparent = on
+  lithoMaterial.opacity = on ? 0.85 : 1
+  vaseMaterial.needsUpdate = true
+  lithoMaterial.needsUpdate = true
+})
+
+// --- Download ---
+document.getElementById('btnDownload').addEventListener('click', () => {
+  if (!currentGeometry) return
+  const modeName = params.mode === 'vase' ? 'VASE' : 'LITHO'
+  const blob = exportSTL(currentGeometry)
+  downloadBlob(blob, `sound_lamp_${modeName}_${params.height}mm.stl`)
+})
+
+// --- Init with demo audio ---
+audioData = generateSyntheticAudio(500)
+drawWaveform(audioData.waveform)
+rebuild()
+
+</script>
+</body>
+</html>
