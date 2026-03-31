@@ -653,6 +653,28 @@ function createLampGeometry(envelope, params) {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geo.setIndex(indices)
   geo.computeVertexNormals()
+
+  // ── Fix seam normals ──────────────────────────────────────────
+  // s=0 e s=segments occupano la stessa posizione ma sono vertici
+  // separati → computeVertexNormals() genera normali diverse → crease visibile.
+  // Soluzione: mediare le normali dei due vertici di seam per ogni layer,
+  // così la riflessione è continua (non cambia nulla nella geometria stampata).
+  const nAttr = geo.getAttribute('normal')
+  const fixSeam = (i0, i1) => {
+    const nx = (nAttr.getX(i0) + nAttr.getX(i1)) / 2
+    const ny = (nAttr.getY(i0) + nAttr.getY(i1)) / 2
+    const nz = (nAttr.getZ(i0) + nAttr.getZ(i1)) / 2
+    const len = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1
+    nAttr.setXYZ(i0, nx/len, ny/len, nz/len)
+    nAttr.setXYZ(i1, nx/len, ny/len, nz/len)
+  }
+  for (let l = 0; l <= layers; l++) {
+    fixSeam(l * ring, l * ring + segments)           // outer seam
+    fixSeam(io + l * ring, io + l * ring + segments) // inner seam
+  }
+  nAttr.needsUpdate = true
+  // ─────────────────────────────────────────────────────────────
+
   return { geo, rangeOriginal }
 }
 
