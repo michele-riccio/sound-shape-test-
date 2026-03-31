@@ -639,9 +639,13 @@ function createLampGeometry(envelope, params) {
       const a = io + l * ring + s, b = a + 1, c = io + (l + 1) * ring + s, d = c + 1
       indices.push(a, b, c, b, d, c)
     }
-  // Bottom cap
+  // Bottom cap — disco solido (necessario per vase mode in Bambu Studio)
+  // Un anello da 0.44mm non viene riconosciuto come primo layer valido.
+  // Aggiungiamo un vertice centrale e creiamo un fan di triangoli solido.
+  const centerIdx = positions.length / 3
+  positions.push(0, 0, 0)  // vertice centrale al fondo
   for (let s = 0; s < segments; s++) {
-    indices.push(s, s + 1, io + s); indices.push(s + 1, io + s + 1, io + s)
+    indices.push(centerIdx, s, s + 1)  // fan: centro → outer ring
   }
   // Top cap
   const tO = layers * ring, tI = io + layers * ring
@@ -777,6 +781,12 @@ function drawProfilePreview(envelope, params) {
 // ═══════════════════════════════════════════════════════════════
 
 function exportSTL(geometry) {
+  // Converti Y-up (Three.js) → Z-up (standard slicer: Bambu, PrusaSlicer, ecc.)
+  // Trasformazione: x_stl = x, y_stl = -z_three, z_stl = y_three
+  // Swappare due assi inverte la chirality → invertiamo l'ordine B↔C per mantenere
+  // le normali verso fuori e il winding corretto.
+  const yup2zup = (x, y, z) => [x, -z, y]
+
   const geo = geometry.index ? geometry.toNonIndexed() : geometry.clone()
   const pos = geo.getAttribute('position')
   const nTri = pos.count / 3
@@ -788,17 +798,20 @@ function exportSTL(geometry) {
   let off = 84
   for (let i = 0; i < nTri; i++) {
     const i3 = i * 3
-    const ax = pos.getX(i3), ay = pos.getY(i3), az = pos.getZ(i3)
-    const bx = pos.getX(i3+1), by = pos.getY(i3+1), bz = pos.getZ(i3+1)
-    const cx = pos.getX(i3+2), cy = pos.getY(i3+2), cz = pos.getZ(i3+2)
-    const ux=bx-ax, uy=by-ay, uz=bz-az, vx=cx-ax, vy=cy-ay, vz=cz-az
+    // Leggi vertici Three.js (Y-up)
+    const [ax,ay,az] = yup2zup(pos.getX(i3),   pos.getY(i3),   pos.getZ(i3))
+    const [bx,by,bz] = yup2zup(pos.getX(i3+1), pos.getY(i3+1), pos.getZ(i3+1))
+    const [cx,cy,cz] = yup2zup(pos.getX(i3+2), pos.getY(i3+2), pos.getZ(i3+2))
+    // Normale (calcolata su A, C, B per winding invertito)
+    const ux=cx-ax, uy=cy-ay, uz=cz-az, vx=bx-ax, vy=by-ay, vz=bz-az
     let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx
     const len = Math.sqrt(nx*nx+ny*ny+nz*nz)
     if (len > 1e-10) { nx/=len; ny/=len; nz/=len }
     dv.setFloat32(off,nx,true);off+=4;dv.setFloat32(off,ny,true);off+=4;dv.setFloat32(off,nz,true);off+=4
+    // Scrivi vertici con winding invertito (A, C, B) per mantenere normali verso fuori
     dv.setFloat32(off,ax,true);off+=4;dv.setFloat32(off,ay,true);off+=4;dv.setFloat32(off,az,true);off+=4
-    dv.setFloat32(off,bx,true);off+=4;dv.setFloat32(off,by,true);off+=4;dv.setFloat32(off,bz,true);off+=4
     dv.setFloat32(off,cx,true);off+=4;dv.setFloat32(off,cy,true);off+=4;dv.setFloat32(off,cz,true);off+=4
+    dv.setFloat32(off,bx,true);off+=4;dv.setFloat32(off,by,true);off+=4;dv.setFloat32(off,bz,true);off+=4
     dv.setUint16(off,0,true);off+=2
   }
   return new Blob([buf], { type: 'application/octet-stream' })
