@@ -639,15 +639,11 @@ function createLampGeometry(envelope, params) {
       const a = io + l * ring + s, b = a + 1, c = io + (l + 1) * ring + s, d = c + 1
       indices.push(a, b, c, b, d, c)
     }
-  // Bottom cap — disco solido (necessario per vase mode in Bambu Studio)
-  // Un anello da 0.44mm non viene riconosciuto come primo layer valido.
-  // Aggiungiamo un vertice centrale e creiamo un fan di triangoli solido.
-  const centerIdx = positions.length / 3
-  positions.push(0, 0, 0)  // vertice centrale al fondo
+  // Bottom cap display (anulare, per mesh cava Three.js)
   for (let s = 0; s < segments; s++) {
-    indices.push(centerIdx, s, s + 1)  // fan: centro → outer ring
+    indices.push(s, s + 1, io + s); indices.push(s + 1, io + s + 1, io + s)
   }
-  // Top cap
+  // Top cap display
   const tO = layers * ring, tI = io + layers * ring
   for (let s = 0; s < segments; s++) {
     indices.push(tO + s, tI + s, tO + s + 1); indices.push(tO + s + 1, tI + s, tI + s + 1)
@@ -658,11 +654,7 @@ function createLampGeometry(envelope, params) {
   geo.setIndex(indices)
   geo.computeVertexNormals()
 
-  // ── Fix seam normals ──────────────────────────────────────────
-  // s=0 e s=segments occupano la stessa posizione ma sono vertici
-  // separati → computeVertexNormals() genera normali diverse → crease visibile.
-  // Soluzione: mediare le normali dei due vertici di seam per ogni layer,
-  // così la riflessione è continua (non cambia nulla nella geometria stampata).
+  // ── Fix seam normals per la preview ──────────────────────────
   const nAttr = geo.getAttribute('normal')
   const fixSeam = (i0, i1) => {
     const nx = (nAttr.getX(i0) + nAttr.getX(i1)) / 2
@@ -673,13 +665,36 @@ function createLampGeometry(envelope, params) {
     nAttr.setXYZ(i1, nx/len, ny/len, nz/len)
   }
   for (let l = 0; l <= layers; l++) {
-    fixSeam(l * ring, l * ring + segments)           // outer seam
-    fixSeam(io + l * ring, io + l * ring + segments) // inner seam
+    fixSeam(l * ring, l * ring + segments)
+    fixSeam(io + l * ring, io + l * ring + segments)
   }
   nAttr.needsUpdate = true
   // ─────────────────────────────────────────────────────────────
 
-  return { geo, rangeOriginal }
+  // ── STL geometry: solo parete esterna + disco solido ─────────
+  // Per vase mode lo STL deve essere una singola superficie aperta
+  // (no parete interna). Il slicer aggiunge lo spessore da solo.
+  // Mesh cava con fondo anulare da 0.44mm → "80 spigoli non-manifold".
+  const stlP = [], stlI = []
+  for (let i = 0; i < outerPos.length; i++) stlP.push(outerPos[i])
+  // Parete esterna
+  for (let l = 0; l < layers; l++)
+    for (let s = 0; s < segments; s++) {
+      const a = l * ring + s, b = a + 1, c = (l + 1) * ring + s, d = c + 1
+      stlI.push(a, c, b, b, c, d)
+    }
+  // Disco solido al fondo: vertice centrale + fan all'outer ring
+  const cI = stlP.length / 3
+  stlP.push(0, 0, 0)
+  for (let s = 0; s < segments; s++) {
+    stlI.push(cI, s + 1, s)  // winding → normale verso il basso (-Y Three.js → -Z Bambu)
+  }
+  const stlGeo = new THREE.BufferGeometry()
+  stlGeo.setAttribute('position', new THREE.Float32BufferAttribute(stlP, 3))
+  stlGeo.setIndex(stlI)
+  // ─────────────────────────────────────────────────────────────
+
+  return { geo, stlGeo, rangeOriginal }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -903,13 +918,15 @@ animate()
 // ═══════════════════════════════════════════════════════════════
 
 let rebuildTimer = null
+let currentSTLGeometry = null  // geometria vase mode per il download
 function scheduleRebuild() { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(rebuild, 80) }
 
 function rebuild() {
   if (!audioData) return
   const p = getParams()
-  const { geo, rangeOriginal } = createLampGeometry(audioData.envelope, p)
+  const { geo, stlGeo, rangeOriginal } = createLampGeometry(audioData.envelope, p)
   currentGeometry = geo
+  currentSTLGeometry = stlGeo
   updateLampMesh(geo, p)
   updatePrintInfo(p, rangeOriginal)
   updateSTLInfo()
@@ -927,8 +944,8 @@ function rebuild() {
 }
 
 function updateSTLInfo() {
-  if (!currentGeometry) return
-  const g = currentGeometry.index ? currentGeometry.toNonIndexed() : currentGeometry
+  if (!currentSTLGeometry) return
+  const g = currentSTLGeometry.index ? currentSTLGeometry.toNonIndexed() : currentSTLGeometry
   const tri = g.getAttribute('position').count / 3
   const mb = ((84 + tri * 50) / (1024 * 1024)).toFixed(2)
   document.getElementById('stlInfo').innerHTML = `${tri.toLocaleString()} triangoli &mdash; ~${mb} MB`
@@ -1114,11 +1131,11 @@ document.getElementById('chkLight').addEventListener('change', e => {
 
 // ── Download ──
 document.getElementById('btnDownload').addEventListener('click', () => {
-  if (!currentGeometry) return
+  if (!currentSTLGeometry) return
   const p = PRESETS[currentPreset]
   const eff = currentEffect === 'scultura' ? 'SCULTURA' : 'LUCE'
   const texSuffix = currentTexture !== 'none' ? `_${currentTexture.toUpperCase()}` : ''
-  downloadBlob(exportSTL(currentGeometry), `SoundShape_${p.name}_${eff}${texSuffix}.stl`)
+  downloadBlob(exportSTL(currentSTLGeometry), `SoundShape_${p.name}_${eff}${texSuffix}.stl`)
 })
 
 // ═══════════════════════════════════════════════════════════════
