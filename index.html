@@ -234,14 +234,33 @@
     </div>
   </div>
 
-  <!-- 4. Anteprima profilo -->
+  <!-- 4. Texture -->
   <div class="section">
-    <div class="section-label">4. Anteprima profilo</div>
+    <div class="section-label">4. Texture superficie</div>
+    <div class="effect-grid">
+      <button class="effect-btn texture-btn active" data-texture="none">
+        &#9711; Liscia
+        <span class="effect-sub">Profilo puro</span>
+      </button>
+      <button class="effect-btn texture-btn" data-texture="ribs">
+        &#10022; Costole
+        <span class="effect-sub">Scanalature verticali</span>
+      </button>
+      <button class="effect-btn texture-btn" data-texture="spiral">
+        &#8767; Spirale
+        <span class="effect-sub">Costole ritorte</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 5. Anteprima profilo -->
+  <div class="section">
+    <div class="section-label">5. Anteprima profilo</div>
     <canvas id="profileCanvas" width="300" height="130"></canvas>
     <div class="profile-note" id="profileNote">Il profilo aggiorna con il tuo audio</div>
   </div>
 
-  <!-- LED toggle -->
+  <!-- 6. LED toggle -->
   <div class="section">
     <label class="check-row">
       <input type="checkbox" id="chkLight">
@@ -331,15 +350,22 @@ const ALGO = {
   maxDuration: 45,          // secondi oltre cui taglia
   minDynamicRange: 0.25,    // range minimo prima del fallback
   flatZoneMm: 8,            // mm transizione base e top
+  // Texture
+  ribCount: 24,             // numero costole verticali
+  ribAmplitude: 0.8,        // profondità max costola (mm)
+  ribSharpness: 3.0,        // spigolo cresta (>1 = più tagliente)
+  ribInfluence: 0.65,       // quanto l'audio amplifica la costola
+  spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
 }
 
 let currentPreset = 'classic'
 let currentEffect = 'scultura'
+let currentTexture = 'none'
 let audioData = null
 let currentGeometry = null
 
 function getParams() {
-  return { ...PRESETS[currentPreset], mode: currentEffect }
+  return { ...PRESETS[currentPreset], mode: currentEffect, texture: currentTexture }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -510,6 +536,27 @@ function beautyProfile(h) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TEXTURE — costole verticali o spiralate, audio-reattive
+// ═══════════════════════════════════════════════════════════════
+
+// Ritorna un offset negativo da sottrarre a rO (incisione verso l'interno)
+// angle: radianti [0, 2π]
+// h: altezza normalizzata [0, 1]
+// audioVal: valore audio [0, 1]
+// texMode: 'none' | 'ribs' | 'spiral'
+function textureOffset(angle, h, audioVal, texMode) {
+  if (texMode === 'none') return 0
+  const { ribCount, ribAmplitude, ribSharpness, ribInfluence, spiralTurns } = ALGO
+  // Profondità max della costola modulata dall'audio
+  const depth = ribAmplitude * (0.35 + audioVal * ribInfluence)
+  // Spirale: ruota l'angolo con l'altezza → diagonale
+  const effectiveAngle = texMode === 'spiral'
+    ? angle + h * spiralTurns * Math.PI * 2
+    : angle
+  return depth * Math.pow(Math.max(0, Math.cos(effectiveAngle * ribCount / 2)), ribSharpness)
+}
+
+// ═══════════════════════════════════════════════════════════════
 // LAMP GEOMETRY
 // ═══════════════════════════════════════════════════════════════
 
@@ -558,7 +605,8 @@ function createLampGeometry(envelope, params) {
         // ══ SCULTURA: raggio uniforme per layer (silhouette che respira) ══
         // (audioVal - 0.5) centra l'onda a 0, produce ± A/2 mm di deformazione
         const deform = (audioVal - 0.5) * A * flat * (1 - baseFit)
-        const rO = Math.max(5, rFit + deform)
+        const tex = textureOffset(angle, h, audioVal, params.texture) * flat * (1 - baseFit)
+        const rO = Math.max(5, rFit + deform - tex)
         const rI = Math.max(2, rO - 0.44)  // parete minima vase mode (1 linea 0.4mm nozzle)
         outerPos.push(Math.cos(angle) * rO, y, Math.sin(angle) * rO)
         innerPos.push(Math.cos(angle) * rI, y, Math.sin(angle) * rI)
@@ -877,7 +925,9 @@ function updatePrintInfo(p, rangeOriginal) {
 function updateBadge() {
   const pre = PRESETS[currentPreset]
   const eff = currentEffect === 'scultura' ? 'Scultura' : 'Luce'
-  document.getElementById('vpBadge').textContent = `${pre.name} — ${eff}`
+  const texLabels = { none: '', ribs: ' · Costole', spiral: ' · Spirale' }
+  const texLabel = texLabels[currentTexture] || ''
+  document.getElementById('vpBadge').textContent = `${pre.name} — ${eff}${texLabel}`
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -998,11 +1048,20 @@ document.querySelectorAll('.preset-card').forEach(card => {
   })
 })
 
-document.querySelectorAll('.effect-btn').forEach(btn => {
+document.querySelectorAll('.effect-btn:not(.texture-btn)').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.effect-btn').forEach(b => b.classList.remove('active'))
+    document.querySelectorAll('.effect-btn:not(.texture-btn)').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     currentEffect = btn.dataset.effect
+    scheduleRebuild()
+  })
+})
+
+document.querySelectorAll('.texture-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.texture-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    currentTexture = btn.dataset.texture
     scheduleRebuild()
   })
 })
@@ -1023,7 +1082,8 @@ document.getElementById('btnDownload').addEventListener('click', () => {
   if (!currentGeometry) return
   const p = PRESETS[currentPreset]
   const eff = currentEffect === 'scultura' ? 'SCULTURA' : 'LUCE'
-  downloadBlob(exportSTL(currentGeometry), `SoundShape_${p.name}_${eff}.stl`)
+  const texSuffix = currentTexture !== 'none' ? `_${currentTexture.toUpperCase()}` : ''
+  downloadBlob(exportSTL(currentGeometry), `SoundShape_${p.name}_${eff}${texSuffix}.stl`)
 })
 
 // ═══════════════════════════════════════════════════════════════
