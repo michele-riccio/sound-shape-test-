@@ -29,7 +29,7 @@
   .panel::-webkit-scrollbar { width: 5px; }
   .panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-  .section { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
 
   .panel-header h1 {
     font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px;
@@ -39,18 +39,18 @@
 
   .section-label {
     font-size: 0.65rem; font-weight: 600; color: var(--text3);
-    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
   }
 
   /* ─── Upload Zone ─── */
   .upload-zone {
     border: 2px dashed #333; border-radius: 10px;
-    padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;
+    padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s;
   }
   .upload-zone:hover { border-color: #555; }
   .upload-zone.dragging { border-color: var(--accent); background: rgba(245,158,11,0.08); }
   .upload-zone .label { font-size: 0.85rem; color: #aaa; }
-  .upload-zone .sub { font-size: 0.7rem; color: var(--text3); margin-top: 4px; }
+  .upload-zone .sub { font-size: 0.7rem; color: var(--text3); margin-top: 3px; }
   .upload-zone .filename { font-size: 0.85rem; color: var(--text); }
 
   /* ─── Record Button ─── */
@@ -74,57 +74,62 @@
   @keyframes recBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
   .waveform-wrap { margin-top: 10px; }
-  .waveform-wrap canvas { width: 100%; height: 44px; border-radius: 6px; display: block; }
-  .audio-note { font-size: 0.62rem; color: var(--text3); text-align: center; margin-top: 5px; font-style: italic; }
+  .waveform-wrap canvas { width: 100%; height: 40px; border-radius: 6px; display: block; }
+
+  /* ─── Audio quality / warnings ─── */
+  .audio-status {
+    font-size: 0.62rem; text-align: center; margin-top: 5px;
+    min-height: 16px; font-style: italic; color: var(--text3);
+    transition: color 0.3s;
+  }
+  .audio-status.warn { color: #fbbf24; font-style: normal; font-weight: 600; }
+  .audio-status.ok { color: var(--ok); font-style: normal; }
 
   /* ─── Preset Cards ─── */
   .preset-grid { display: flex; gap: 6px; }
   .preset-card {
-    flex: 1; padding: 12px 8px; border: 2px solid var(--border); border-radius: 10px;
+    flex: 1; padding: 10px 6px; border: 2px solid var(--border); border-radius: 10px;
     text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg3);
   }
   .preset-card:hover { border-color: #444; }
   .preset-card.active { border-color: var(--accent); background: rgba(245,158,11,0.08); }
-  .preset-card .preset-icon {
-    width: 36px; height: auto; margin: 0 auto 8px;
-    display: block; opacity: 0.7;
-  }
+  .preset-card .preset-icon { width: 30px; height: auto; margin: 0 auto 6px; display: block; opacity: 0.7; }
   .preset-card.active .preset-icon { opacity: 1; }
-  .preset-card .preset-name {
-    font-size: 0.78rem; font-weight: 700; color: var(--text);
-  }
-  .preset-card .preset-size {
-    font-size: 0.62rem; color: var(--text3); margin-top: 2px;
-    font-family: 'SF Mono', 'Fira Code', monospace;
-  }
-  .preset-card .preset-time {
-    font-size: 0.58rem; color: var(--text3); margin-top: 4px;
-  }
+  .preset-card .preset-name { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+  .preset-card .preset-size { font-size: 0.6rem; color: var(--text3); margin-top: 2px; font-family: monospace; }
+  .preset-card .preset-time { font-size: 0.56rem; color: var(--text3); margin-top: 3px; }
 
   /* ─── Effect style ─── */
   .effect-grid { display: flex; gap: 6px; }
   .effect-btn {
     flex: 1; padding: 8px 6px; border: 1px solid var(--border); border-radius: 8px;
     text-align: center; cursor: pointer; transition: all 0.2s;
-    background: var(--bg3); font-size: 0.72rem; font-weight: 600; color: var(--text2);
+    background: var(--bg3); font-size: 0.74rem; font-weight: 600; color: var(--text2);
   }
   .effect-btn:hover { border-color: #444; }
   .effect-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(245,158,11,0.06); }
-  .effect-sub { font-size: 0.58rem; color: var(--text3); font-weight: 400; display: block; margin-top: 2px; }
+  .effect-sub { font-size: 0.57rem; color: var(--text3); font-weight: 400; display: block; margin-top: 2px; }
+
+  /* ─── Profile Preview ─── */
+  #profileCanvas {
+    width: 100%; height: 130px; border-radius: 8px; display: block;
+    background: #141414;
+  }
+  .profile-note { font-size: 0.6rem; color: var(--text3); text-align: center; margin-top: 4px; }
 
   /* ─── Print Info ─── */
   .print-card {
-    background: var(--bg3); border-radius: 10px; padding: 14px; border: 1px solid var(--border);
+    background: var(--bg3); border-radius: 10px; padding: 12px; border: 1px solid var(--border);
   }
   .print-row {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.73rem; padding: 3px 0;
+    font-size: 0.72rem; padding: 3px 0;
   }
   .print-row .pl { color: var(--text2); }
-  .print-row .pv { color: #ccc; font-family: 'SF Mono', 'Fira Code', monospace; }
+  .print-row .pv { color: #ccc; font-family: monospace; }
   .print-row .pv.ok { color: var(--ok); }
   .print-row .pv.warn { color: var(--danger); }
-  .print-sep { border-top: 1px solid var(--border); margin: 6px 0; }
+  .print-sep { border-top: 1px solid var(--border); margin: 5px 0; }
 
   /* ─── Checkbox ─── */
   .check-row {
@@ -134,8 +139,8 @@
   .check-row input { accent-color: var(--accent); }
 
   /* ─── Download ─── */
-  .download-section { padding: 18px 20px; margin-top: auto; }
-  .stl-info { font-size: 0.7rem; color: var(--text3); margin-bottom: 10px; line-height: 1.6; }
+  .download-section { padding: 16px 20px; margin-top: auto; }
+  .stl-info { font-size: 0.68rem; color: var(--text3); margin-bottom: 10px; line-height: 1.6; }
   .dl-btn {
     width: 100%; padding: 13px; border: none; border-radius: 10px;
     font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
@@ -149,15 +154,9 @@
   /* ─── Viewport ─── */
   .viewport { flex: 1; position: relative; }
   .viewport canvas { display: block; }
-  .vp-hint {
-    position: absolute; top: 14px; right: 16px;
-    font-size: 0.7rem; color: var(--text3); pointer-events: none;
-  }
-  .vp-badge {
-    position: absolute; top: 14px; left: 16px;
-    font-size: 0.68rem; color: var(--text2); pointer-events: none;
-    background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 6px;
-  }
+  .vp-hint { position: absolute; top: 14px; right: 16px; font-size: 0.7rem; color: var(--text3); pointer-events: none; }
+  .vp-badge { position: absolute; top: 14px; left: 16px; font-size: 0.68rem; color: var(--text2); pointer-events: none; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 6px; }
+  .vp-audio-info { position: absolute; bottom: 14px; left: 16px; font-size: 0.62rem; color: var(--text3); pointer-events: none; background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 5px; }
 </style>
 </head>
 <body>
@@ -168,7 +167,7 @@
   <!-- Header -->
   <div class="section panel-header">
     <h1><span class="icon">&#9836;</span> Sound-Shape Test Lab</h1>
-    <p>Carica il tuo audio &rarr; la lampada prende forma &rarr; scarica STL</p>
+    <p>Carica audio &rarr; la lampada prende forma &rarr; scarica STL</p>
   </div>
 
   <!-- 1. Audio Input -->
@@ -176,7 +175,7 @@
     <div class="section-label">1. Il tuo audio</div>
     <div class="upload-zone" id="uploadZone">
       <div class="label" id="uploadLabel">Trascina audio qui o clicca</div>
-      <div class="sub" id="uploadSub">WAV, MP3, OGG, AAC, M4A</div>
+      <div class="sub" id="uploadSub">WAV · MP3 · OGG · M4A &mdash; 3-45 secondi</div>
     </div>
     <input type="file" id="fileInput" accept="audio/*" style="display:none">
     <button class="rec-btn" id="btnRecord">
@@ -184,9 +183,9 @@
       <span id="recLabel">Registra dal microfono</span>
     </button>
     <div class="waveform-wrap">
-      <canvas id="waveformCanvas" width="300" height="44"></canvas>
+      <canvas id="waveformCanvas" width="300" height="40"></canvas>
     </div>
-    <div class="audio-note" id="audioNote">Audio demo sintetico</div>
+    <div class="audio-status" id="audioStatus">Audio demo sintetico</div>
   </div>
 
   <!-- 2. Modello -->
@@ -194,45 +193,52 @@
     <div class="section-label">2. Scegli il modello</div>
     <div class="preset-grid">
       <div class="preset-card" data-preset="mini">
-        <svg class="preset-icon" viewBox="0 0 40 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 55 L10 15 Q10 5 20 5 Q30 5 30 15 L30 55 Z" stroke="#f59e0b" stroke-width="1.5" fill="none"/>
+        <svg class="preset-icon" viewBox="0 0 30 60" fill="none">
+          <path d="M7 56 Q6 42 6 30 Q6 10 15 6 Q24 10 24 30 Q24 42 23 56 Z" stroke="#f59e0b" stroke-width="1.5" fill="none"/>
         </svg>
         <div class="preset-name">Mini</div>
-        <div class="preset-size">70 &times; 90 mm</div>
-        <div class="preset-time">~25 min stampa</div>
+        <div class="preset-size">65 &times; 130 mm</div>
+        <div class="preset-time">~20 min scultura</div>
       </div>
       <div class="preset-card active" data-preset="classic">
-        <svg class="preset-icon" viewBox="0 0 40 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 65 L8 15 Q8 3 20 3 Q32 3 32 15 L32 65 Z" stroke="#f59e0b" stroke-width="1.5" fill="none"/>
+        <svg class="preset-icon" viewBox="0 0 30 70" fill="none">
+          <path d="M6 65 Q5 48 5 35 Q5 8 15 4 Q25 8 25 35 Q25 48 24 65 Z" stroke="#f59e0b" stroke-width="1.5" fill="none"/>
         </svg>
         <div class="preset-name">Classic</div>
-        <div class="preset-size">80 &times; 120 mm</div>
-        <div class="preset-time">~40 min stampa</div>
+        <div class="preset-size">70 &times; 150 mm</div>
+        <div class="preset-time">~25 min scultura</div>
       </div>
       <div class="preset-card" data-preset="grande">
-        <svg class="preset-icon" viewBox="0 0 40 85" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 80 L8 15 Q8 3 20 3 Q32 3 32 15 L32 80 Z" stroke="#f59e0b" stroke-width="1.5" fill="none"/>
+        <svg class="preset-icon" viewBox="0 0 30 80" fill="none">
+          <path d="M6 75 Q5 55 5 40 Q5 8 15 4 Q25 8 25 40 Q25 55 24 75 Z" stroke="#f59e0b" stroke-width="1.5" fill="none"/>
         </svg>
         <div class="preset-name">Grande</div>
-        <div class="preset-size">80 &times; 160 mm</div>
-        <div class="preset-time">~55 min stampa</div>
+        <div class="preset-size">75 &times; 170 mm</div>
+        <div class="preset-time">~35 min scultura</div>
       </div>
     </div>
   </div>
 
-  <!-- 3. Effetto luce -->
+  <!-- 3. Effetto -->
   <div class="section">
     <div class="section-label">3. Tipo di effetto</div>
     <div class="effect-grid">
-      <button class="effect-btn active" data-effect="silhouette">
-        Silhouette
-        <span class="effect-sub">Forma visibile dal profilo</span>
+      <button class="effect-btn active" data-effect="scultura">
+        &#10022; Scultura
+        <span class="effect-sub">La voce plasma la forma</span>
       </button>
-      <button class="effect-btn" data-effect="retroilluminato">
-        Retroilluminato
-        <span class="effect-sub">Pattern visibile con luce</span>
+      <button class="effect-btn" data-effect="luce">
+        &#9711; Luce
+        <span class="effect-sub">La voce si rivela illuminata</span>
       </button>
     </div>
+  </div>
+
+  <!-- 4. Anteprima profilo -->
+  <div class="section">
+    <div class="section-label">4. Anteprima profilo</div>
+    <canvas id="profileCanvas" width="300" height="130"></canvas>
+    <div class="profile-note" id="profileNote">Il profilo aggiorna con il tuo audio</div>
   </div>
 
   <!-- LED toggle -->
@@ -247,31 +253,13 @@
   <div class="section">
     <div class="print-card">
       <div class="section-label" style="margin-bottom:8px">Stime stampa &mdash; A1 Mini</div>
-      <div class="print-row">
-        <span class="pl">Dimensioni</span>
-        <span class="pv" id="piDims">80 &times; 120 mm</span>
-      </div>
-      <div class="print-row">
-        <span class="pl">Diametro max con audio</span>
-        <span class="pv ok" id="piMaxDia">~88 mm</span>
-      </div>
-      <div class="print-row">
-        <span class="pl">Entra nell'A1 Mini?</span>
-        <span class="pv ok" id="piFits">Si</span>
-      </div>
+      <div class="print-row"><span class="pl">Dimensioni</span><span class="pv" id="piDims">70 &times; 150 mm</span></div>
+      <div class="print-row"><span class="pl">Diametro max</span><span class="pv ok" id="piMaxDia">~82 mm</span></div>
+      <div class="print-row"><span class="pl">Entra nell'A1 Mini?</span><span class="pv ok" id="piFits">Sì</span></div>
       <div class="print-sep"></div>
-      <div class="print-row">
-        <span class="pl">Tempo stimato</span>
-        <span class="pv" id="piTime">~40 min</span>
-      </div>
-      <div class="print-row">
-        <span class="pl">PLA</span>
-        <span class="pv" id="piPLA">~5 g</span>
-      </div>
-      <div class="print-row">
-        <span class="pl">Costo materiale</span>
-        <span class="pv" id="piCost">~€0.13</span>
-      </div>
+      <div class="print-row"><span class="pl">Tempo stimato</span><span class="pv" id="piTime">~25 min</span></div>
+      <div class="print-row"><span class="pl">PLA</span><span class="pv" id="piPLA">~6 g</span></div>
+      <div class="print-row"><span class="pl">Costo materiale</span><span class="pv" id="piCost">~€0.15</span></div>
     </div>
   </div>
 
@@ -279,17 +267,17 @@
   <div class="download-section">
     <div class="stl-info" id="stlInfo"></div>
     <button class="dl-btn" id="btnDownload">Scarica STL per Bambu Studio</button>
-    <div class="dl-hint">Importa in Bambu Studio &rarr; Spiral Vase Mode &rarr; stampa</div>
+    <div class="dl-hint">Importa &rarr; Spiral Vase Mode &rarr; stampa</div>
   </div>
 </div>
 
 <!-- ═══ 3D VIEWPORT ═══ -->
 <div class="viewport" id="viewport">
-  <div class="vp-hint">Scroll = zoom &mdash; Drag = ruota</div>
-  <div class="vp-badge" id="vpBadge">Classic &mdash; Silhouette</div>
+  <div class="vp-hint">Scroll = zoom &nbsp;·&nbsp; Drag = ruota</div>
+  <div class="vp-badge" id="vpBadge">Classic &mdash; Scultura</div>
+  <div class="vp-audio-info" id="vpAudioInfo"></div>
 </div>
 
-<!-- Three.js -->
 <script type="importmap">
 {
   "imports": {
@@ -304,94 +292,148 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 // ═══════════════════════════════════════════════════════════════
-// PRESET DEFINITIONS — tutte le forme sono bloccate qui
+// PRESETS — proporzioni corrette 2:1, amplitude gestita internamente
 // ═══════════════════════════════════════════════════════════════
 
 const PRESETS = {
   mini: {
     name: 'Mini',
-    height: 90,
-    diameter: 70,
-    amplitude: 3,         // max deformation mm
-    wallThickness: 2,
-    segments: 72,
-    layers: 160,
-    flatZone: 3,
-    baseFitDiameter: 70,
-    baseFitHeight: 5,
-    printTimeVase: 25,    // minuti stimati vase mode
-    printTimeLitho: 175,  // minuti stimati lithophane
+    height: 130, diameter: 65,
+    wallThickness: 2, segments: 80, layers: 200,
+    baseFitDiameter: 65, baseFitHeight: 6,
+    printTimeScultura: 20, printTimeLuce: 150,
   },
   classic: {
     name: 'Classic',
-    height: 120,
-    diameter: 80,
-    amplitude: 4,
-    wallThickness: 2,
-    segments: 80,
-    layers: 200,
-    flatZone: 3,
-    baseFitDiameter: 80,
-    baseFitHeight: 5,
-    printTimeVase: 40,
-    printTimeLitho: 280,
+    height: 150, diameter: 70,
+    wallThickness: 2, segments: 88, layers: 240,
+    baseFitDiameter: 70, baseFitHeight: 6,
+    printTimeScultura: 25, printTimeLuce: 190,
   },
   grande: {
     name: 'Grande',
-    height: 160,
-    diameter: 80,
-    amplitude: 4.5,
-    wallThickness: 2,
-    segments: 80,
-    layers: 280,
-    flatZone: 4,
-    baseFitDiameter: 80,
-    baseFitHeight: 6,
-    printTimeVase: 55,
-    printTimeLitho: 385,
+    height: 170, diameter: 75,
+    wallThickness: 2, segments: 96, layers: 280,
+    baseFitDiameter: 75, baseFitHeight: 7,
+    printTimeScultura: 35, printTimeLuce: 260,
   },
 }
 
-// Stato corrente
+// Parametri interni algoritmo — non esposti all'utente
+const ALGO = {
+  sculpturaAmplitude: 12,   // mm — onda silhouette max ±6mm
+  sculpturaSmoothing: 10,   // sigma gaussian pesante
+  luceSmoothing: 2,         // sigma lithophane — mantiene il dettaglio
+  luceMinWall: 0.8,         // mm parete sottile = zona luminosa
+  luceMaxWall: 3.0,         // mm parete spessa = zona scura
+  minDuration: 3,           // secondi minimo accettabile
+  warnDuration: 5,          // secondi sotto cui avvisa
+  maxDuration: 45,          // secondi oltre cui taglia
+  minDynamicRange: 0.25,    // range minimo prima del fallback
+  flatZoneMm: 8,            // mm transizione base e top
+}
+
 let currentPreset = 'classic'
-let currentEffect = 'silhouette' // 'silhouette' | 'retroilluminato'
+let currentEffect = 'scultura'
 let audioData = null
 let currentGeometry = null
 
 function getParams() {
-  const p = { ...PRESETS[currentPreset] }
-  p.mode = currentEffect === 'silhouette' ? 'vase' : 'litho'
-  return p
+  return { ...PRESETS[currentPreset], mode: currentEffect }
 }
 
 // ═══════════════════════════════════════════════════════════════
 // AUDIO PROCESSING
 // ═══════════════════════════════════════════════════════════════
 
-function gaussianSmooth(data, passes) {
-  let r = [...data]
-  for (let p = 0; p < passes; p++) {
-    const s = []
-    for (let i = 0; i < r.length; i++) {
-      const prev = i > 0 ? r[i-1] : r[i]
-      const next = i < r.length-1 ? r[i+1] : r[i]
-      s.push(prev * 0.25 + r[i] * 0.5 + next * 0.25)
-    }
-    r = s
+// Gaussian kernel reale con sigma arbitrario
+function gaussianSmooth(data, sigma) {
+  const half = Math.ceil(sigma * 3)
+  const kernel = []
+  for (let i = -half; i <= half; i++) {
+    kernel.push(Math.exp(-(i * i) / (2 * sigma * sigma)))
   }
-  return r
+  const ksum = kernel.reduce((a, b) => a + b, 0)
+  const k = kernel.map(v => v / ksum)
+  return data.map((_, i) => {
+    let val = 0
+    for (let j = 0; j < k.length; j++) {
+      const idx = Math.max(0, Math.min(data.length - 1, i + j - half))
+      val += k[j] * data[idx]
+    }
+    return val
+  })
 }
 
 function resample(data, len) {
-  if (!data.length) return new Array(len).fill(0)
+  if (!data.length) return new Array(len).fill(0.5)
   if (data.length === len) return [...data]
   const out = []
   for (let i = 0; i < len; i++) {
-    const p = (i / (len-1)) * (data.length-1)
-    const lo = Math.floor(p), hi = Math.min(lo+1, data.length-1)
-    out.push(data[lo] * (1-(p-lo)) + data[hi] * (p-lo))
+    const p = (i / (len - 1)) * (data.length - 1)
+    const lo = Math.floor(p), hi = Math.min(lo + 1, data.length - 1)
+    out.push(data[lo] * (1 - (p - lo)) + data[hi] * (p - lo))
   }
   return out
+}
+
+// Onda organica di fallback — bella anche senza audio
+function generateFallbackWave(n) {
+  return Array.from({ length: n }, (_, i) => {
+    const h = i / (n - 1)
+    return 0.5
+      + 0.30 * Math.sin(h * Math.PI * 3.0 + 0.4) * Math.sin(h * Math.PI * 1.3)
+      + 0.12 * Math.sin(h * Math.PI * 5.5 + 1.1)
+      + 0.08 * Math.sin(h * Math.PI * 8.0 - 0.7)
+  })
+}
+
+// Prepara l'envelope per scultura (smooth pesante, fallback se piatto)
+function prepareSculpturaProfile(rawEnvelope, layers) {
+  let profile = resample(rawEnvelope, layers + 1)
+  profile = gaussianSmooth(profile, ALGO.sculpturaSmoothing)
+
+  const mn = Math.min(...profile), mx = Math.max(...profile)
+  const range = mx - mn
+
+  if (range < ALGO.minDynamicRange) {
+    // Blend con onda organica: audio piatto → forma comunque bella
+    const fallback = generateFallbackWave(layers + 1)
+    const blendW = 0.7 * (1 - range / ALGO.minDynamicRange)
+    profile = profile.map((v, i) => v * (1 - blendW) + fallback[i] * blendW)
+  }
+
+  // Normalizza a [0, 1]
+  const mn2 = Math.min(...profile), mx2 = Math.max(...profile)
+  return { profile: profile.map(v => (v - mn2) / Math.max(mx2 - mn2, 1e-6)), rangeOriginal: range }
+}
+
+// Prepara l'envelope per lithophane (sigma basso, mantiene dettaglio)
+function prepareLuceProfile(rawEnvelope, layers) {
+  let profile = resample(rawEnvelope, layers + 1)
+  profile = gaussianSmooth(profile, ALGO.luceSmoothing)
+  const mn = Math.min(...profile), mx = Math.max(...profile)
+  return { profile: profile.map(v => (v - mn) / Math.max(mx - mn, 1e-6)), rangeOriginal: mx - mn }
+}
+
+// Valida qualità audio e ritorna messaggi
+function validateAudio(duration, rangeOriginal) {
+  const msgs = []
+  if (duration < ALGO.minDuration) {
+    msgs.push({ type: 'warn', text: `⚠ Audio troppo corto (${duration.toFixed(1)}s) — minimo 3s` })
+  } else if (duration < ALGO.warnDuration) {
+    msgs.push({ type: 'warn', text: `⚠ Audio corto (${duration.toFixed(1)}s) — 5+ secondi per risultato migliore` })
+  }
+  if (duration > ALGO.maxDuration) {
+    msgs.push({ type: 'info', text: `ℹ Uso solo i primi 45s (audio: ${duration.toFixed(0)}s)` })
+  }
+  if (rangeOriginal < ALGO.minDynamicRange) {
+    msgs.push({ type: 'warn', text: `⚠ Audio poco dinamico — forma ottimizzata automaticamente` })
+  }
+  if (msgs.length === 0) {
+    msgs.push({ type: 'ok', text: `✓ Audio ottimale — ${duration.toFixed(1)}s` })
+  }
+  return msgs
 }
 
 async function processAudioFile(file) {
@@ -400,141 +442,264 @@ async function processAudioFile(file) {
   let ab
   try { ab = await ctx.decodeAudioData(buf) } finally { ctx.close() }
 
-  const ch = ab.getChannelData(0)
+  let ch = ab.getChannelData(0)
   const sr = ab.sampleRate
+  let duration = ab.duration
 
-  const winSize = Math.floor(sr * 0.05)
+  // Taglia oltre 45s
+  if (duration > ALGO.maxDuration) {
+    ch = ch.slice(0, Math.floor(sr * ALGO.maxDuration))
+    duration = ALGO.maxDuration
+  }
+
+  // RMS envelope — finestre 80ms per scultura (più smooth di 50ms)
+  const winSize = Math.floor(sr * 0.08)
   const hop = Math.floor(winSize / 2)
   const raw = []
   for (let i = 0; i < ch.length - winSize; i += hop) {
     let sum = 0
-    for (let j = 0; j < winSize; j++) sum += ch[i+j] ** 2
+    for (let j = 0; j < winSize; j++) sum += ch[i + j] ** 2
     raw.push(Math.sqrt(sum / winSize))
   }
   const mx = Math.max(...raw, 1e-10)
-  const envelope = gaussianSmooth(raw.map(v => v/mx), 3)
+  const envelope = raw.map(v => v / mx)
 
+  // Waveform visuale (display only)
   const pts = Math.min(2000, ch.length)
   const step = Math.floor(ch.length / pts)
   const wave = []
   for (let i = 0; i < pts; i++) {
     let m = 0
-    const s = i*step, e = Math.min(s+step, ch.length)
+    const s = i * step, e = Math.min(s + step, ch.length)
     for (let j = s; j < e; j++) { const a = Math.abs(ch[j]); if (a > m) m = a }
     wave.push(m)
   }
   const wmx = Math.max(...wave, 1e-10)
-  return { envelope, waveform: wave.map(v=>v/wmx), duration: ab.duration }
+
+  return { envelope, waveform: wave.map(v => v / wmx), duration }
 }
 
-function generateSyntheticAudio(n = 500) {
+function generateSyntheticAudio(n = 600) {
   const envelope = [], waveform = []
   for (let i = 0; i < n; i++) {
-    const t = i/n
-    const val = 0.3*Math.sin(t*Math.PI*6) + 0.25*Math.sin(t*Math.PI*14+1)
-      + 0.2*Math.sin(t*Math.PI*22+2.5) + 0.15*Math.cos(t*Math.PI*3) + 0.1*(Math.random()*0.5)
-    const fade = Math.min(t*5,1) * Math.min((1-t)*5,1)
-    envelope.push(Math.max(0, Math.min(1, (val*0.5+0.5)*fade)))
-    waveform.push(Math.sin(t*Math.PI*20) * envelope[i])
+    const t = i / n
+    const val = 0.28 * Math.sin(t * Math.PI * 5)
+      + 0.22 * Math.sin(t * Math.PI * 11 + 1)
+      + 0.18 * Math.sin(t * Math.PI * 17 + 2.3)
+      + 0.14 * Math.cos(t * Math.PI * 3.5)
+      + 0.08 * (Math.random() - 0.5)
+    const fade = Math.min(t * 4, 1) * Math.min((1 - t) * 4, 1)
+    envelope.push(Math.max(0, Math.min(1, (val * 0.5 + 0.5) * fade)))
+    waveform.push(Math.sin(t * Math.PI * 22) * envelope[i])
   }
   return { envelope, waveform, duration: 10 }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// LAMP GEOMETRY — parametri interni, l'utente non tocca nulla
+// PROFILO BASE — curva organica bella a prescindere dall'audio
+// ═══════════════════════════════════════════════════════════════
+
+// h = altezza normalizzata [0, 1]
+// Ritorna moltiplicatore del raggio base
+// Risultato: leggero rigonfiamento al 40%, rastrematura al top
+function beautyProfile(h) {
+  const belly = 0.055 * Math.sin(h * Math.PI * 1.05)  // rigonfiamento centrale
+  const taper = 0.07 * h * h                           // rastrematura verso alto
+  const baseFlare = 0.03 * Math.pow(1 - h, 3)          // lieve allargamento alla base
+  return 1.0 + belly - taper + baseFlare
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LAMP GEOMETRY
 // ═══════════════════════════════════════════════════════════════
 
 function createLampGeometry(envelope, params) {
-  const { mode, height, diameter, amplitude, wallThickness, segments, layers,
-          flatZone, baseFitDiameter, baseFitHeight } = params
-  const radius = diameter / 2
-  const profile = resample(envelope, layers + 1)
-  const segs = segments
-  const ring = segs + 1
+  const { mode, height, diameter, segments, layers,
+          baseFitDiameter, baseFitHeight } = params
+  const baseRadius = diameter / 2
+  const ring = segments + 1
+
+  // Prepara profilo audio in base alla modalità
+  let profile, rangeOriginal
+  if (mode === 'scultura') {
+    ({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers))
+  } else {
+    ({ profile, rangeOriginal } = prepareLuceProfile(envelope, layers))
+  }
 
   const outerPos = [], innerPos = []
+  const A = ALGO.sculpturaAmplitude  // ±A/2 mm max deformation in scultura
 
   for (let l = 0; l <= layers; l++) {
-    const t = l / layers
-    const y = t * height
+    const h = l / layers
+    const y = h * height
 
-    // Flat zone blend
+    // Flat zone: transizione smooth a base e top
+    const fz = ALGO.flatZoneMm
     let flat = 1.0
-    if (y < flatZone) flat = y / flatZone
-    else if (y > height - flatZone) flat = (height - y) / flatZone
+    if (y < fz) flat = y / fz
+    else if (y > height - fz) flat = (height - y) / fz
     flat = Math.max(0, Math.min(1, flat))
 
-    // Base friction-fit zone
+    // Base fit: zona di incastro nella base in legno
     let baseFit = 0
     if (y < baseFitHeight) baseFit = 1.0 - y / baseFitHeight
 
-    const audioVal = profile[l]
+    // Profilo organico base
+    const bMult = 1.0 + (beautyProfile(h) - 1.0) * (1 - baseFit)
+    const rFit = baseFit > 0 ? baseFitDiameter / 2 : baseRadius * bMult
 
-    for (let s = 0; s <= segs; s++) {
-      const angle = (s / segs) * Math.PI * 2
+    const audioVal = profile[l]  // [0, 1]
 
-      if (mode === 'vase') {
-        // ── SILHOUETTE: raggio modulato dall'audio ──
-        const deform = audioVal * amplitude * flat * (1 - baseFit)
-        // Variazione angolare sottile per carattere organico (max ±0.6mm)
-        const angVar = (Math.sin(angle*3 + t*Math.PI*6)*0.35
-          + Math.sin(angle*7 + t*Math.PI*2)*0.15
-          + Math.sin(angle*11 - t*Math.PI*4)*0.1) * flat * (1-baseFit)
-        const rBase = baseFit > 0 ? baseFitDiameter/2 : radius
-        const rO = rBase + deform + angVar
-        const rI = rO - wallThickness
-        outerPos.push(Math.cos(angle)*rO, y, Math.sin(angle)*rO)
-        innerPos.push(Math.cos(angle)*rI, y, Math.sin(angle)*rI)
+    for (let s = 0; s <= segments; s++) {
+      const angle = (s / segments) * Math.PI * 2
+
+      if (mode === 'scultura') {
+        // ══ SCULTURA: raggio uniforme per layer (silhouette che respira) ══
+        // (audioVal - 0.5) centra l'onda a 0, produce ± A/2 mm di deformazione
+        const deform = (audioVal - 0.5) * A * flat * (1 - baseFit)
+        const rO = Math.max(5, rFit + deform)
+        const rI = Math.max(2, rO - 0.44)  // parete minima vase mode (1 linea 0.4mm nozzle)
+        outerPos.push(Math.cos(angle) * rO, y, Math.sin(angle) * rO)
+        innerPos.push(Math.cos(angle) * rI, y, Math.sin(angle) * rI)
+
       } else {
-        // ── RETROILLUMINATO: spessore parete modulato ──
-        const rO = baseFit > 0 ? baseFitDiameter/2 : radius
-        const audioPos = (t * 0.75 + (s/segs) * 0.25) % 1.0
-        const envIdx = Math.floor(audioPos * (profile.length - 1))
-        const aVal = profile[envIdx]
-        const detail = Math.sin(angle*12 + t*Math.PI*20)*0.12
-          + Math.sin(angle*5 - t*Math.PI*8)*0.08
-        const mod = (aVal + detail) * flat * (1 - baseFit)
-        const minW = 0.8, maxW = 3.0
-        const wall = minW + (maxW - minW) * (1 - mod)
-        const rI = rO - Math.max(minW, Math.min(maxW, wall))
-        outerPos.push(Math.cos(angle)*rO, y, Math.sin(angle)*rO)
-        innerPos.push(Math.cos(angle)*rI, y, Math.sin(angle)*rI)
+        // ══ LUCE: lithophane — spessore parete modulato dall'audio ══
+        // Audio forte (1) → parete sottile (0.8mm) → zona luminosa
+        // Audio quieto (0) → parete spessa (3mm) → zona scura
+        const wall = ALGO.luceMinWall + (ALGO.luceMaxWall - ALGO.luceMinWall) * (1 - audioVal) * flat * (1 - baseFit)
+        const rO = rFit
+        const rI = Math.max(2, rO - Math.max(ALGO.luceMinWall, Math.min(ALGO.luceMaxWall, wall)))
+        outerPos.push(Math.cos(angle) * rO, y, Math.sin(angle) * rO)
+        innerPos.push(Math.cos(angle) * rI, y, Math.sin(angle) * rI)
       }
     }
   }
 
-  // Build hollow cylinder mesh
+  // Build hollow mesh
   const positions = [], indices = []
   for (let i = 0; i < outerPos.length; i++) positions.push(outerPos[i])
   for (let l = 0; l < layers; l++)
-    for (let s = 0; s < segs; s++) {
-      const a = l*ring+s, b = a+1, c = (l+1)*ring+s, d = c+1
-      indices.push(a,c,b, b,c,d)
+    for (let s = 0; s < segments; s++) {
+      const a = l * ring + s, b = a + 1, c = (l + 1) * ring + s, d = c + 1
+      indices.push(a, c, b, b, c, d)
     }
-
   const io = outerPos.length / 3
   for (let i = 0; i < innerPos.length; i++) positions.push(innerPos[i])
   for (let l = 0; l < layers; l++)
-    for (let s = 0; s < segs; s++) {
-      const a = io+l*ring+s, b = a+1, c = io+(l+1)*ring+s, d = c+1
-      indices.push(a,b,c, b,d,c)
+    for (let s = 0; s < segments; s++) {
+      const a = io + l * ring + s, b = a + 1, c = io + (l + 1) * ring + s, d = c + 1
+      indices.push(a, b, c, b, d, c)
     }
-
   // Bottom cap
-  for (let s = 0; s < segs; s++) {
-    indices.push(s, s+1, io+s); indices.push(s+1, io+s+1, io+s)
+  for (let s = 0; s < segments; s++) {
+    indices.push(s, s + 1, io + s); indices.push(s + 1, io + s + 1, io + s)
   }
   // Top cap
-  const tO = layers*ring, tI = io + layers*ring
-  for (let s = 0; s < segs; s++) {
-    indices.push(tO+s, tI+s, tO+s+1); indices.push(tO+s+1, tI+s, tI+s+1)
+  const tO = layers * ring, tI = io + layers * ring
+  for (let s = 0; s < segments; s++) {
+    indices.push(tO + s, tI + s, tO + s + 1); indices.push(tO + s + 1, tI + s, tI + s + 1)
   }
 
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geo.setIndex(indices)
   geo.computeVertexNormals()
-  return geo
+  return { geo, rangeOriginal }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROFILE PREVIEW — canvas 2D silhouette
+// ═══════════════════════════════════════════════════════════════
+
+function drawProfilePreview(envelope, params) {
+  const canvas = document.getElementById('profileCanvas')
+  const ctx = canvas.getContext('2d')
+  const W = canvas.width, H = canvas.height
+
+  ctx.clearRect(0, 0, W, H)
+  ctx.fillStyle = '#141414'; ctx.fillRect(0, 0, W, H)
+
+  if (!envelope) return
+
+  const { mode, height, diameter, layers, baseFitDiameter, baseFitHeight } = params
+  const baseRadius = diameter / 2
+
+  let profile
+  if (mode === 'scultura') {
+    const res = prepareSculpturaProfile(envelope, layers)
+    profile = res.profile
+  } else {
+    const res = prepareLuceProfile(envelope, layers)
+    profile = res.profile
+  }
+
+  const A = ALGO.sculpturaAmplitude
+  const maxR = baseRadius * 1.12 + A / 2 + 2
+  const margin = 10
+  const scaleX = (W / 2 - margin) / maxR
+  const scaleY = (H - margin * 2) / layers
+
+  const leftPts = [], rightPts = []
+
+  for (let l = 0; l <= layers; l++) {
+    const h = l / layers
+    const y = H - margin - l * scaleY  // bottom → top
+    const fz = ALGO.flatZoneMm
+    const yMm = h * height
+    let flat = 1.0
+    if (yMm < fz) flat = yMm / fz
+    else if (yMm > height - fz) flat = (height - yMm) / fz
+    flat = Math.max(0, Math.min(1, flat))
+    let baseFit = 0
+    if (yMm < baseFitHeight) baseFit = 1.0 - yMm / baseFitHeight
+    const bMult = 1.0 + (beautyProfile(h) - 1.0) * (1 - baseFit)
+    const rFit = baseFit > 0 ? baseFitDiameter / 2 : baseRadius * bMult
+    const audioVal = profile[l]
+    let r
+    if (mode === 'scultura') {
+      r = Math.max(5, rFit + (audioVal - 0.5) * A * flat * (1 - baseFit))
+    } else {
+      r = rFit
+    }
+    const px = r * scaleX
+    leftPts.push([W / 2 - px, y])
+    rightPts.push([W / 2 + px, y])
+  }
+
+  // Fill
+  ctx.beginPath()
+  ctx.moveTo(leftPts[0][0], leftPts[0][1])
+  for (let i = 1; i < leftPts.length; i++) ctx.lineTo(leftPts[i][0], leftPts[i][1])
+  for (let i = rightPts.length - 1; i >= 0; i--) ctx.lineTo(rightPts[i][0], rightPts[i][1])
+  ctx.closePath()
+  const grad = ctx.createLinearGradient(0, 0, W, 0)
+  grad.addColorStop(0, 'rgba(245,158,11,0.06)')
+  grad.addColorStop(0.5, 'rgba(245,158,11,0.18)')
+  grad.addColorStop(1, 'rgba(245,158,11,0.06)')
+  ctx.fillStyle = grad; ctx.fill()
+
+  // Outline left
+  ctx.beginPath(); ctx.moveTo(leftPts[0][0], leftPts[0][1])
+  for (let i = 1; i < leftPts.length; i++) ctx.lineTo(leftPts[i][0], leftPts[i][1])
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5; ctx.stroke()
+
+  // Outline right
+  ctx.beginPath(); ctx.moveTo(rightPts[0][0], rightPts[0][1])
+  for (let i = 1; i < rightPts.length; i++) ctx.lineTo(rightPts[i][0], rightPts[i][1])
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5; ctx.stroke()
+
+  // Center axis
+  ctx.beginPath(); ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 0.5
+  ctx.setLineDash([3, 4]); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H)
+  ctx.stroke(); ctx.setLineDash([])
+
+  // Scale bar — 10mm
+  const bar10 = 10 * scaleX
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.setLineDash([])
+  ctx.beginPath(); ctx.moveTo(W - 8 - bar10, H - 6); ctx.lineTo(W - 8, H - 6); ctx.stroke()
+  ctx.fillStyle = '#555'; ctx.font = '8px monospace'
+  ctx.fillText('10mm', W - 8 - bar10 - 1, H - 8)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -547,21 +712,19 @@ function exportSTL(geometry) {
   const nTri = pos.count / 3
   const buf = new ArrayBuffer(84 + nTri * 50)
   const dv = new DataView(buf)
-
-  const hdr = 'Sound-Shape STL'
+  const hdr = 'Sound-Shape STL — soundshape.it'
   for (let i = 0; i < 80; i++) dv.setUint8(i, i < hdr.length ? hdr.charCodeAt(i) : 0)
   dv.setUint32(80, nTri, true)
-
   let off = 84
   for (let i = 0; i < nTri; i++) {
-    const i3 = i*3
-    const ax=pos.getX(i3),ay=pos.getY(i3),az=pos.getZ(i3)
-    const bx=pos.getX(i3+1),by=pos.getY(i3+1),bz=pos.getZ(i3+1)
-    const cx=pos.getX(i3+2),cy=pos.getY(i3+2),cz=pos.getZ(i3+2)
-    const ux=bx-ax,uy=by-ay,uz=bz-az,vx=cx-ax,vy=cy-ay,vz=cz-az
-    let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx
-    const len=Math.sqrt(nx*nx+ny*ny+nz*nz)
-    if(len>1e-10){nx/=len;ny/=len;nz/=len}
+    const i3 = i * 3
+    const ax = pos.getX(i3), ay = pos.getY(i3), az = pos.getZ(i3)
+    const bx = pos.getX(i3+1), by = pos.getY(i3+1), bz = pos.getZ(i3+1)
+    const cx = pos.getX(i3+2), cy = pos.getY(i3+2), cz = pos.getZ(i3+2)
+    const ux=bx-ax, uy=by-ay, uz=bz-az, vx=cx-ax, vy=cy-ay, vz=cz-az
+    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz)
+    if (len > 1e-10) { nx/=len; ny/=len; nz/=len }
     dv.setFloat32(off,nx,true);off+=4;dv.setFloat32(off,ny,true);off+=4;dv.setFloat32(off,nz,true);off+=4
     dv.setFloat32(off,ax,true);off+=4;dv.setFloat32(off,ay,true);off+=4;dv.setFloat32(off,az,true);off+=4
     dv.setFloat32(off,bx,true);off+=4;dv.setFloat32(off,by,true);off+=4;dv.setFloat32(off,bz,true);off+=4
@@ -587,7 +750,7 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x0a0a0a)
 
 const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 2000)
-camera.position.set(0, 80, 200)
+camera.position.set(0, 90, 230)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -596,109 +759,125 @@ viewport.appendChild(renderer.domElement)
 
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true; controls.dampingFactor = 0.05
-controls.target.set(0, 60, 0)
+controls.target.set(0, 75, 0)
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.35))
-const dl1 = new THREE.DirectionalLight(0xfff5e6, 1.0); dl1.position.set(100,200,100); scene.add(dl1)
-const dl2 = new THREE.DirectionalLight(0xe6f0ff, 0.4); dl2.position.set(-80,100,-60); scene.add(dl2)
+scene.add(new THREE.AmbientLight(0xffffff, 0.30))
+const dl1 = new THREE.DirectionalLight(0xfff5e6, 1.1); dl1.position.set(120, 200, 100); scene.add(dl1)
+const dl2 = new THREE.DirectionalLight(0xe6f0ff, 0.45); dl2.position.set(-80, 120, -60); scene.add(dl2)
+const dl3 = new THREE.DirectionalLight(0xffffff, 0.20); dl3.position.set(0, -50, 80); scene.add(dl3)
 
-const ledLight = new THREE.PointLight(0xffcc66, 0, 200)
+const ledLight = new THREE.PointLight(0xffcc66, 0, 300)
 ledLight.position.set(0, 15, 0); scene.add(ledLight)
-const ledBulb = new THREE.Mesh(new THREE.SphereGeometry(3,16,16), new THREE.MeshBasicMaterial({color:0xffdd88}))
-ledBulb.position.set(0,15,0); ledBulb.visible = false; scene.add(ledBulb)
+const ledBulb = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffdd88 }))
+ledBulb.position.set(0, 15, 0); ledBulb.visible = false; scene.add(ledBulb)
 
 const baseMesh = new THREE.Mesh(
-  new THREE.CylinderGeometry(45,48,2,64),
-  new THREE.MeshStandardMaterial({color:0x3d2b1f, roughness:0.8})
+  new THREE.CylinderGeometry(42, 46, 3, 64),
+  new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.8 })
 )
-baseMesh.position.y = -1; scene.add(baseMesh)
+baseMesh.position.y = -1.5; scene.add(baseMesh)
 
-const grid = new THREE.GridHelper(400,40,0x1a1a1a,0x141414)
-grid.position.y = -2; scene.add(grid)
+const grid = new THREE.GridHelper(400, 40, 0x1a1a1a, 0x141414)
+grid.position.y = -3; scene.add(grid)
 
 let lampMesh = null
-const vaseMat = new THREE.MeshPhysicalMaterial({color:0xf0e0c0,side:THREE.DoubleSide,roughness:0.35,metalness:0})
-const lithoMat = new THREE.MeshPhysicalMaterial({color:0xe8d5b7,side:THREE.DoubleSide,roughness:0.4,metalness:0})
+
+// Materiali — leggermente traslucenti per simulare PLA chiaro
+const sculpturaMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf5ead8, side: THREE.DoubleSide,
+  roughness: 0.30, metalness: 0,
+  transmission: 0.1, transparent: true, opacity: 0.95,
+})
+const luceMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf0e0c8, side: THREE.DoubleSide,
+  roughness: 0.40, metalness: 0,
+  transmission: 0.08, transparent: true, opacity: 0.97,
+})
 
 function updateLampMesh(geo, p) {
   if (lampMesh) { scene.remove(lampMesh); lampMesh.geometry.dispose() }
-  lampMesh = new THREE.Mesh(geo, p.mode === 'litho' ? lithoMat : vaseMat)
+  lampMesh = new THREE.Mesh(geo, p.mode === 'luce' ? luceMat : sculpturaMat)
   scene.add(lampMesh)
-  controls.target.set(0, p.height/2, 0)
+  controls.target.set(0, p.height / 2, 0)
   baseMesh.geometry.dispose()
-  baseMesh.geometry = new THREE.CylinderGeometry(p.diameter/2+5, p.diameter/2+8, 2, 64)
-  ledLight.position.y = p.height*0.15; ledBulb.position.y = p.height*0.15
-  ledLight.distance = p.diameter*2
+  baseMesh.geometry = new THREE.CylinderGeometry(p.diameter / 2 + 4, p.diameter / 2 + 7, 3, 64)
+  ledLight.position.y = p.height * 0.12
+  ledBulb.position.y = p.height * 0.12
+  ledLight.distance = p.diameter * 2.5
 }
 
 function onResize() {
   const w = viewport.clientWidth, h = viewport.clientHeight
-  camera.aspect = w/h; camera.updateProjectionMatrix()
-  renderer.setSize(w,h); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2))
+  camera.aspect = w / h; camera.updateProjectionMatrix()
+  renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 }
 window.addEventListener('resize', onResize); onResize()
-function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera) }
+function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera) }
 animate()
 
 // ═══════════════════════════════════════════════════════════════
-// REBUILD + PRINT INFO
+// REBUILD + INFO UPDATE
 // ═══════════════════════════════════════════════════════════════
 
 let rebuildTimer = null
-function scheduleRebuild() { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(rebuild, 60) }
+function scheduleRebuild() { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(rebuild, 80) }
 
 function rebuild() {
   if (!audioData) return
   const p = getParams()
-  currentGeometry = createLampGeometry(audioData.envelope, p)
-  updateLampMesh(currentGeometry, p)
-  updatePrintInfo(p)
+  const { geo, rangeOriginal } = createLampGeometry(audioData.envelope, p)
+  currentGeometry = geo
+  updateLampMesh(geo, p)
+  updatePrintInfo(p, rangeOriginal)
   updateSTLInfo()
   updateBadge()
+  drawProfilePreview(audioData.envelope, p)
+
+  // Valida audio e mostra status
+  const msgs = validateAudio(audioData.duration, rangeOriginal)
+  const statusEl = document.getElementById('audioStatus')
+  const vpInfo = document.getElementById('vpAudioInfo')
+  const first = msgs[0]
+  statusEl.textContent = first.text
+  statusEl.className = 'audio-status ' + (first.type === 'warn' ? 'warn' : first.type === 'ok' ? 'ok' : '')
+  vpInfo.textContent = `${audioData.duration.toFixed(1)}s · dynamic range: ${(rangeOriginal * 100).toFixed(0)}%`
 }
 
 function updateSTLInfo() {
   if (!currentGeometry) return
   const g = currentGeometry.index ? currentGeometry.toNonIndexed() : currentGeometry
   const tri = g.getAttribute('position').count / 3
-  const mb = ((84+tri*50)/(1024*1024)).toFixed(2)
-  document.getElementById('stlInfo').innerHTML =
-    `${tri.toLocaleString()} triangoli &mdash; ~${mb} MB`
+  const mb = ((84 + tri * 50) / (1024 * 1024)).toFixed(2)
+  document.getElementById('stlInfo').innerHTML = `${tri.toLocaleString()} triangoli &mdash; ~${mb} MB`
 }
 
-function updatePrintInfo(p) {
-  const maxAngVar = 0.6
-  const maxDia = p.diameter + (p.amplitude + maxAngVar) * 2
-  const fitsX = maxDia <= 180
-  const fitsZ = p.height <= 180
+function updatePrintInfo(p, rangeOriginal) {
+  const isScultura = p.mode === 'scultura'
+  const maxDia = p.diameter + ALGO.sculpturaAmplitude + 2
+  const fitsX = maxDia <= 180, fitsZ = p.height <= 180
   const fitsAll = fitsX && fitsZ
-
-  const isVase = p.mode === 'vase'
-  const printMin = isVase ? p.printTimeVase : p.printTimeLitho
-  const h = Math.floor(printMin/60), m = Math.round(printMin%60)
+  const printMin = isScultura ? p.printTimeScultura : p.printTimeLuce
+  const h = Math.floor(printMin / 60), m = Math.round(printMin % 60)
   const timeStr = h > 0 ? `~${h}h ${m}min` : `~${m} min`
-
-  // PLA: shell volume
-  const wT = isVase ? 0.44 : p.wallThickness
-  const rO = maxDia/2
-  const vol = Math.PI * ((rO**2) - ((rO-wT)**2)) * p.height * 1.1
-  const grams = (vol/1000) * 1.24
-  const cost = (grams/1000) * 25
-
-  document.getElementById('piDims').textContent = `${p.diameter} \u00d7 ${p.height} mm`
+  const wT = isScultura ? 0.44 : p.wallThickness
+  const rO = maxDia / 2
+  const vol = Math.PI * ((rO ** 2) - ((rO - wT) ** 2)) * p.height * 1.1
+  const grams = (vol / 1000) * 1.24
+  const cost = (grams / 1000) * 25
+  document.getElementById('piDims').textContent = `${p.diameter} × ${p.height} mm`
   document.getElementById('piMaxDia').textContent = `~${maxDia.toFixed(0)} mm`
   document.getElementById('piMaxDia').className = 'pv ' + (fitsX ? 'ok' : 'warn')
-  document.getElementById('piFits').textContent = fitsAll ? 'Si' : 'NO'
+  document.getElementById('piFits').textContent = fitsAll ? 'Sì' : 'NO'
   document.getElementById('piFits').className = 'pv ' + (fitsAll ? 'ok' : 'warn')
   document.getElementById('piTime').textContent = timeStr
   document.getElementById('piPLA').textContent = `~${grams.toFixed(1)} g`
-  document.getElementById('piCost').textContent = `~\u20ac${cost.toFixed(2)}`
+  document.getElementById('piCost').textContent = `~€${cost.toFixed(2)}`
 }
 
 function updateBadge() {
   const pre = PRESETS[currentPreset]
-  const eff = currentEffect === 'silhouette' ? 'Silhouette' : 'Retroilluminato'
-  document.getElementById('vpBadge').textContent = `${pre.name} \u2014 ${eff}`
+  const eff = currentEffect === 'scultura' ? 'Scultura' : 'Luce'
+  document.getElementById('vpBadge').textContent = `${pre.name} — ${eff}`
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -708,17 +887,18 @@ function updateBadge() {
 function drawWaveform(waveform) {
   const c = document.getElementById('waveformCanvas')
   const ctx = c.getContext('2d'), w = c.width, h = c.height
-  ctx.clearRect(0,0,w,h)
-  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0,0,w,h)
+  ctx.clearRect(0, 0, w, h)
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, w, h)
   const step = waveform.length / w
   ctx.beginPath(); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1
   for (let x = 0; x < w; x++) {
-    const v = waveform[Math.min(Math.floor(x*step), waveform.length-1)]
-    ctx.moveTo(x, h/2 - v*h/2*0.9); ctx.lineTo(x, h/2 + v*h/2*0.9)
+    const v = waveform[Math.min(Math.floor(x * step), waveform.length - 1)]
+    ctx.moveTo(x, h / 2 - v * h / 2 * 0.88)
+    ctx.lineTo(x, h / 2 + v * h / 2 * 0.88)
   }
   ctx.stroke()
-  ctx.beginPath(); ctx.strokeStyle='#333'; ctx.lineWidth=0.5
-  ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke()
+  ctx.beginPath(); ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 0.5
+  ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke()
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -739,7 +919,7 @@ fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.
 
 async function handleFile(file) {
   const ext = file.name.split('.').pop().toLowerCase()
-  if (!['wav','mp3','ogg','aac','m4a','flac','webm'].includes(ext)) {
+  if (!['wav', 'mp3', 'ogg', 'aac', 'm4a', 'flac', 'webm'].includes(ext)) {
     alert('Formato non supportato. Usa WAV, MP3, OGG, AAC, M4A.'); return
   }
   document.getElementById('uploadLabel').textContent = 'Analizzando...'
@@ -747,14 +927,13 @@ async function handleFile(file) {
   try {
     audioData = await processAudioFile(file)
     document.getElementById('uploadLabel').innerHTML = `<span class="filename">${file.name}</span>`
-    document.getElementById('uploadSub').textContent = `${audioData.duration.toFixed(1)}s \u2014 Clicca per cambiare`
-    document.getElementById('audioNote').textContent = ''
+    document.getElementById('uploadSub').textContent = `${audioData.duration.toFixed(1)}s — Clicca per cambiare`
     drawWaveform(audioData.waveform)
     rebuild()
   } catch (err) {
     console.error(err); alert('Errore: ' + err.message)
     document.getElementById('uploadLabel').textContent = 'Trascina audio qui o clicca'
-    document.getElementById('uploadSub').textContent = 'WAV, MP3, OGG, AAC, M4A'
+    document.getElementById('uploadSub').textContent = 'WAV · MP3 · OGG · M4A — 3-45 secondi'
   }
 }
 
@@ -766,7 +945,6 @@ const recLabel = document.getElementById('recLabel')
 
 btnRec.addEventListener('click', async () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); return }
-
   let stream
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -774,48 +952,41 @@ btnRec.addEventListener('click', async () => {
     })
   } catch (err) {
     alert(err.name === 'NotAllowedError'
-      ? 'Permesso microfono negato. Abilitalo nelle impostazioni del browser.'
+      ? 'Permesso microfono negato. Abilitalo nelle impostazioni.'
       : 'Errore microfono: ' + err.message)
     return
   }
-
   recChunks = []
-  const types = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4']
+  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
   const mimeType = types.find(t => MediaRecorder.isTypeSupported(t)) || ''
   mediaRecorder = new MediaRecorder(stream, { mimeType })
-
   mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data) }
   mediaRecorder.onstop = async () => {
     stream.getTracks().forEach(t => t.stop())
     clearInterval(recTimer)
     btnRec.classList.remove('recording')
     recLabel.textContent = 'Analizzando...'
-
     const blob = new Blob(recChunks, { type: mediaRecorder.mimeType })
     try {
       audioData = await processAudioFile(new File([blob], 'rec.webm', { type: blob.type }))
       document.getElementById('uploadLabel').innerHTML = '<span class="filename">Registrazione microfono</span>'
       document.getElementById('uploadSub').textContent = audioData.duration.toFixed(1) + 's'
-      document.getElementById('audioNote').textContent = ''
       drawWaveform(audioData.waveform); rebuild()
     } catch (err) { console.error(err); alert('Errore: ' + err.message) }
     recLabel.textContent = 'Registra dal microfono'
   }
-
-  mediaRecorder.start(100)
-  recStart = Date.now()
+  mediaRecorder.start(100); recStart = Date.now()
   btnRec.classList.add('recording')
-  recLabel.textContent = '0:00 \u2014 Tocca per fermare'
-
+  recLabel.textContent = '0:00 — Tocca per fermare'
   recTimer = setInterval(() => {
-    const el = Math.floor((Date.now()-recStart)/1000)
-    recLabel.textContent = `${Math.floor(el/60)}:${String(el%60).padStart(2,'0')} \u2014 Tocca per fermare`
+    const el = Math.floor((Date.now() - recStart) / 1000)
+    recLabel.textContent = `${Math.floor(el / 60)}:${String(el % 60).padStart(2, '0')} — Tocca per fermare`
     if (el >= MAX_REC) mediaRecorder.stop()
   }, 250)
 })
 
 // ═══════════════════════════════════════════════════════════════
-// UI: PRESET + EFFECT SELECTION
+// UI: PRESET + EFFECT + LED
 // ═══════════════════════════════════════════════════════════════
 
 document.querySelectorAll('.preset-card').forEach(card => {
@@ -836,21 +1007,22 @@ document.querySelectorAll('.effect-btn').forEach(btn => {
   })
 })
 
-// ── LED toggle ──
 document.getElementById('chkLight').addEventListener('change', e => {
   const on = e.target.checked
-  ledLight.intensity = on ? 300 : 0
+  ledLight.intensity = on ? 350 : 0
   ledBulb.visible = on
-  vaseMat.transmission = on ? 0.4 : 0; vaseMat.transparent = on; vaseMat.opacity = on ? 0.8 : 1
-  lithoMat.transmission = on ? 0.5 : 0; lithoMat.transparent = on; lithoMat.opacity = on ? 0.85 : 1
-  vaseMat.needsUpdate = true; lithoMat.needsUpdate = true
+  sculpturaMat.transmission = on ? 0.35 : 0.1
+  sculpturaMat.opacity = on ? 0.75 : 0.95
+  luceMat.transmission = on ? 0.50 : 0.08
+  luceMat.opacity = on ? 0.80 : 0.97
+  sculpturaMat.needsUpdate = true; luceMat.needsUpdate = true
 })
 
 // ── Download ──
 document.getElementById('btnDownload').addEventListener('click', () => {
   if (!currentGeometry) return
   const p = PRESETS[currentPreset]
-  const eff = currentEffect === 'silhouette' ? 'SIL' : 'RETRO'
+  const eff = currentEffect === 'scultura' ? 'SCULTURA' : 'LUCE'
   downloadBlob(exportSTL(currentGeometry), `SoundShape_${p.name}_${eff}.stl`)
 })
 
@@ -858,7 +1030,7 @@ document.getElementById('btnDownload').addEventListener('click', () => {
 // INIT
 // ═══════════════════════════════════════════════════════════════
 
-audioData = generateSyntheticAudio(500)
+audioData = generateSyntheticAudio(600)
 drawWaveform(audioData.waveform)
 rebuild()
 
