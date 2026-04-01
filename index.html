@@ -671,12 +671,13 @@ function createLampGeometry(envelope, params) {
   nAttr.needsUpdate = true
   // ─────────────────────────────────────────────────────────────
 
-  // ── STL geometry: parete esterna ricalcolata SENZA baseFit ──────
-  // Il problema: outerPos usa baseFit → cilindro fisso nei primi 6mm
-  // → disco solido Bambu più largo della spirale → gradino + spaghetti.
-  // Fix: ricalcolo le posizioni STL con solo beautyProfile + audio + flat,
-  // così disco e spirale hanno sempre lo stesso raggio ad ogni altezza.
+  // ── STL geometry: parete esterna SENZA baseFit, SENZA vertici duplicati ──
+  // Problema precedente: vertici 0 e segments alla stessa posizione ma indici
+  // diversi → disco non chiudeva → N spigoli non-manifold (N = segments).
+  // Fix: loop posizioni con s < segments (no duplicato seam), indici con wrap
+  // modulo segments → mesh perfettamente chiusa e manifold.
   const stlP = [], stlI = []
+  const stlRing = segments  // niente vertice duplicato di seam
 
   for (let l = 0; l <= layers; l++) {
     const h = l / layers
@@ -691,7 +692,7 @@ function createLampGeometry(envelope, params) {
     const rBase = baseRadius * bMult
     const audioVal = profile[l]
 
-    for (let s = 0; s <= segments; s++) {
+    for (let s = 0; s < segments; s++) {  // < non <=, niente seam duplicato
       const angle = (s / segments) * Math.PI * 2
       let rO
       if (mode === 'scultura') {
@@ -705,17 +706,21 @@ function createLampGeometry(envelope, params) {
     }
   }
 
-  // Parete esterna
+  // Parete esterna con wrap-around modulo segments
   for (let l = 0; l < layers; l++)
     for (let s = 0; s < segments; s++) {
-      const a = l * ring + s, b = a + 1, c = (l + 1) * ring + s, d = c + 1
+      const sn = (s + 1) % segments  // wrap: ultimo segment → vertice 0
+      const a = l * stlRing + s,  b = l * stlRing + sn
+      const c = (l + 1) * stlRing + s, d = (l + 1) * stlRing + sn
       stlI.push(a, c, b, b, c, d)
     }
-  // Disco solido al fondo: vertice centrale + fan all'outer ring (raggio = beautyProfile al base)
+
+  // Disco solido al fondo: fan con wrap → nessun bordo aperto
   const cI = stlP.length / 3
   stlP.push(0, 0, 0)
   for (let s = 0; s < segments; s++) {
-    stlI.push(cI, s + 1, s)
+    const sn = (s + 1) % segments  // ultimo triangle chiude su vertice 0
+    stlI.push(cI, sn, s)
   }
 
   const stlGeo = new THREE.BufferGeometry()
