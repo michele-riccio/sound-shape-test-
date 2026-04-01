@@ -318,21 +318,21 @@ const PRESETS = {
   mini: {
     name: 'Mini',
     height: 130, diameter: 65,
-    wallThickness: 2, segments: 80, layers: 200,
+    wallThickness: 2, segments: 48, layers: 130,
     baseFitDiameter: 65, baseFitHeight: 6,
     printTimeScultura: 20, printTimeLuce: 150,
   },
   classic: {
     name: 'Classic',
     height: 150, diameter: 70,
-    wallThickness: 2, segments: 88, layers: 240,
+    wallThickness: 2, segments: 54, layers: 150,
     baseFitDiameter: 70, baseFitHeight: 6,
     printTimeScultura: 25, printTimeLuce: 190,
   },
   grande: {
     name: 'Grande',
     height: 170, diameter: 75,
-    wallThickness: 2, segments: 96, layers: 280,
+    wallThickness: 2, segments: 60, layers: 170,
     baseFitDiameter: 75, baseFitHeight: 7,
     printTimeScultura: 35, printTimeLuce: 260,
   },
@@ -671,24 +671,53 @@ function createLampGeometry(envelope, params) {
   nAttr.needsUpdate = true
   // ─────────────────────────────────────────────────────────────
 
-  // ── STL geometry: solo parete esterna + disco solido ─────────
-  // Per vase mode lo STL deve essere una singola superficie aperta
-  // (no parete interna). Il slicer aggiunge lo spessore da solo.
-  // Mesh cava con fondo anulare da 0.44mm → "80 spigoli non-manifold".
+  // ── STL geometry: parete esterna ricalcolata SENZA baseFit ──────
+  // Il problema: outerPos usa baseFit → cilindro fisso nei primi 6mm
+  // → disco solido Bambu più largo della spirale → gradino + spaghetti.
+  // Fix: ricalcolo le posizioni STL con solo beautyProfile + audio + flat,
+  // così disco e spirale hanno sempre lo stesso raggio ad ogni altezza.
   const stlP = [], stlI = []
-  for (let i = 0; i < outerPos.length; i++) stlP.push(outerPos[i])
+
+  for (let l = 0; l <= layers; l++) {
+    const h = l / layers
+    const y = h * height
+    const fz = ALGO.flatZoneMm
+    let flat = 1.0
+    if (y < fz) flat = y / fz
+    else if (y > height - fz) flat = (height - y) / fz
+    flat = Math.max(0, Math.min(1, flat))
+
+    const bMult = beautyProfile(h)
+    const rBase = baseRadius * bMult
+    const audioVal = profile[l]
+
+    for (let s = 0; s <= segments; s++) {
+      const angle = (s / segments) * Math.PI * 2
+      let rO
+      if (mode === 'scultura') {
+        const deform = (audioVal - 0.5) * A * flat
+        const tex = textureOffset(angle, h, audioVal, params.texture) * flat
+        rO = Math.max(5, rBase + deform - tex)
+      } else {
+        rO = rBase
+      }
+      stlP.push(Math.cos(angle) * rO, y, Math.sin(angle) * rO)
+    }
+  }
+
   // Parete esterna
   for (let l = 0; l < layers; l++)
     for (let s = 0; s < segments; s++) {
       const a = l * ring + s, b = a + 1, c = (l + 1) * ring + s, d = c + 1
       stlI.push(a, c, b, b, c, d)
     }
-  // Disco solido al fondo: vertice centrale + fan all'outer ring
+  // Disco solido al fondo: vertice centrale + fan all'outer ring (raggio = beautyProfile al base)
   const cI = stlP.length / 3
   stlP.push(0, 0, 0)
   for (let s = 0; s < segments; s++) {
-    stlI.push(cI, s + 1, s)  // winding → normale verso il basso (-Y Three.js → -Z Bambu)
+    stlI.push(cI, s + 1, s)
   }
+
   const stlGeo = new THREE.BufferGeometry()
   stlGeo.setAttribute('position', new THREE.Float32BufferAttribute(stlP, 3))
   stlGeo.setIndex(stlI)
