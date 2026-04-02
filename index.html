@@ -221,7 +221,7 @@
     <div class="waveform-wrap">
       <canvas id="waveformCanvas" width="300" height="40"></canvas>
     </div>
-    <div class="audio-status" id="audioStatus">Audio demo sintetico</div>
+    <div class="audio-status" id="audioStatus">Carica o registra un audio per iniziare</div>
   </div>
 
   <!-- 2. Modello -->
@@ -1002,11 +1002,30 @@ function initCylinder() {
   const posAttr = geo.getAttribute('position')
   posAttr.array.set(cylPos); posAttr.needsUpdate = true
   geo.computeVertexNormals()
+
+  // Solid grey cylinder
   if (lampMesh) { scene.remove(lampMesh); lampMesh.geometry.dispose() }
-  lampMesh = new THREE.Mesh(geo, sculpturaMat)
+  lampMesh = new THREE.Mesh(geo, cylinderMat)
   scene.add(lampMesh)
+
+  // Amber wireframe overlay — comunica "materia grezza da plasmare"
+  if (wireframeMesh) { scene.remove(wireframeMesh); wireframeMesh.geometry.dispose() }
+  const edgeGeo = new THREE.EdgesGeometry(
+    new THREE.CylinderGeometry(p.diameter / 2, p.diameter / 2, p.height, 24, 6, true), 20
+  )
+  wireframeMesh = new THREE.LineSegments(edgeGeo,
+    new THREE.LineBasicMaterial({ color: 0xf59e0b, opacity: 0.35, transparent: true })
+  )
+  wireframeMesh.position.y = p.height / 2   // CylinderGeometry è centrato, allinealo con lampMesh
+  scene.add(wireframeMesh)
+
+  // Camera: inquadra il cilindro intero con respiro
+  const camDist = p.height * 2.15
+  const camY    = p.height * 0.45
+  camera.position.set(0, camY, camDist)
   controls.target.set(0, p.height / 2, 0)
   controls.autoRotate = true; controls.autoRotateSpeed = 0.5
+
   baseMesh.geometry.dispose()
   baseMesh.geometry = new THREE.CylinderGeometry(p.diameter / 2 + 4, p.diameter / 2 + 7, 3, 64)
   ledLight.position.y = p.height * 0.12
@@ -1026,6 +1045,9 @@ function triggerGenerate() {
 
   const startPositions = createCylinderPositions(p)
   const endPositions   = new Float32Array(pendingLampGeo.getAttribute('position').array)
+
+  // Rimuovi wireframe idle — la trasformazione sta per iniziare
+  if (wireframeMesh) { scene.remove(wireframeMesh); wireframeMesh.geometry.dispose(); wireframeMesh = null }
 
   // Create morph mesh starting from cylinder positions
   if (lampMesh) { scene.remove(lampMesh); lampMesh.geometry.dispose() }
@@ -1069,7 +1091,7 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x0a0a0a)
 
 const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 2000)
-camera.position.set(0, 90, 230)
+camera.position.set(0, 75, 320)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -1099,7 +1121,8 @@ baseMesh.position.y = -1.5; scene.add(baseMesh)
 const grid = new THREE.GridHelper(400, 40, 0x1a1a1a, 0x141414)
 grid.position.y = -3; scene.add(grid)
 
-let lampMesh = null
+let lampMesh      = null
+let wireframeMesh = null   // amber wireframe overlay visible only in idle state
 let morphState    = null   // active morph animation
 let pendingLampGeo = null  // computed lamp geo waiting for "Genera"
 let pendingParams  = null  // params matching pendingLampGeo
@@ -1115,6 +1138,12 @@ const luceMat = new THREE.MeshPhysicalMaterial({
   color: 0xf0e0c8, side: THREE.DoubleSide,
   roughness: 0.40, metalness: 0,
   transmission: 0.08, transparent: true, opacity: 0.97,
+})
+// Materiale cilindro iniziale — grigio/neutro, chiaramente "materia grezza"
+const cylinderMat = new THREE.MeshPhysicalMaterial({
+  color: 0xc8c4be, side: THREE.DoubleSide,
+  roughness: 0.60, metalness: 0,
+  transmission: 0.04, transparent: true, opacity: 0.80,
 })
 
 function updateLampMesh(geo, p) {
