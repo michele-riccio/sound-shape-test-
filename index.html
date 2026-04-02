@@ -402,11 +402,11 @@ const ALGO = {
   ribInfluence: 0.65,       // quanto l'audio amplifica la costola
   spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
   // Groove
-  grooveCount: 36,          // numero striature verticali (più fitte)
-  grooveDepth: 2.8,         // profondità scanalatura (mm)
-  grooveSharpness: 7.0,     // nettezza bordo scanalatura (alto = tagliente)
-  grooveWaveFreq: 2.5,      // oscillazioni orizzontali su tutta l'altezza
-  grooveWaveAudio: 2.2,     // ampiezza ondulazione modulata dall'audio
+  grooveCount: 30,          // numero striature verticali (fitte come benchmark)
+  grooveDepth: 6.0,         // profondità scanalatura (mm) — visibile ma non aggressiva
+  grooveSharpness: 5.0,     // creste nette ma organiche
+  grooveWaveFreq: 2.5,      // oscillazioni verticali su tutta l'altezza
+  grooveWaveAudio: 0.7,     // ridotto per evitare artefatti geometrici
   // Minimal
   minimalSegments: 128,     // segmenti radiali alta risoluzione
   minimalAmplitude: 18,     // mm — onda silhouette max ±9mm (più pronunciata)
@@ -427,6 +427,10 @@ function getParams() {
     base.layers = Math.round(base.layers * 1.2)
     base._sculpturaAmplitudeOverride = ALGO.minimalAmplitude
     base._sculpturaSmoothingOverride = ALGO.minimalSmoothing
+  }
+  // Groove: alta risoluzione per smooth normals che catturano le creste
+  if (currentTexture === 'groove') {
+    base.segments = ALGO.minimalSegments  // 128 segmenti
   }
   return base
 }
@@ -612,11 +616,20 @@ function textureOffset(angle, h, audioVal, texMode) {
 
   if (texMode === 'groove') {
     const { grooveCount, grooveDepth, grooveSharpness, grooveWaveFreq, grooveWaveAudio } = ALGO
-    // Striature verticali ondulate: la fase angolare oscilla sull'altezza, amplificata dall'audio
-    const phaseShift = audioVal * grooveWaveAudio * Math.sin(h * grooveWaveFreq * Math.PI * 2)
-    // Profondità scanalatura: più intensa dove audio è forte
-    const depth = grooveDepth * (0.3 + audioVal * 0.7)
-    return depth * Math.pow(Math.max(0, Math.cos((angle + phaseShift) * grooveCount / 2)), grooveSharpness)
+
+    // Costole verticali fisse — NO inclinazione angolare (causa artefatti)
+    const ribPattern = Math.pow(Math.max(0, Math.cos(angle * grooveCount / 2)), grooveSharpness)
+
+    // "Carattere" unico per costola: basato sulla posizione angolare, stabile verticalmente
+    // → alcune costole naturalmente più profonde, altre più superficiali
+    const costolaSeed = Math.sin(angle * grooveCount / 2)  // [-1, 1] diverso per ogni costola
+
+    // Profondità: variazione verticale (wave) + carattere per costola (seed) + audio
+    const wave = Math.sin(h * grooveWaveFreq * Math.PI * 2)
+    const profMod = 0.42 + 0.22 * wave
+      + 0.18 * costolaSeed                                    // asimmetria per costola
+      + audioVal * grooveWaveAudio * (0.30 + 0.22 * costolaSeed)  // audio amplifica il carattere
+    return grooveDepth * Math.max(0.05, profMod) * ribPattern
   }
 
   const { ribCount, ribAmplitude, ribSharpness, ribInfluence, spiralTurns } = ALGO
@@ -792,8 +805,17 @@ function createLampGeometry(envelope, params) {
   const cI = stlP.length / 3
   stlP.push(0, 0, 0)
   for (let s = 0; s < segments; s++) {
-    const sn = (s + 1) % segments  // ultimo triangle chiude su vertice 0
+    const sn = (s + 1) % segments
     stlI.push(cI, sn, s)
+  }
+
+  // Disco solido in cima: chiude il bordo superiore → elimina non-manifold
+  const cT = stlP.length / 3
+  stlP.push(0, height, 0)
+  const topBase = layers * stlRing
+  for (let s = 0; s < segments; s++) {
+    const sn = (s + 1) % segments
+    stlI.push(cT, topBase + s, topBase + sn)
   }
 
   const stlGeo = new THREE.BufferGeometry()
@@ -1084,7 +1106,7 @@ function triggerGenerate() {
   const posAttr = morphGeo.getAttribute('position')
   posAttr.array.set(startPositions); posAttr.needsUpdate = true
   morphGeo.computeVertexNormals()
-  lampMesh = new THREE.Mesh(morphGeo, p.mode === 'luce' ? luceMat : sculpturaMat)
+  lampMesh = new THREE.Mesh(morphGeo, pickMaterial(p))
   scene.add(lampMesh)
 
   // Update scene
@@ -1168,6 +1190,13 @@ const luceMat = new THREE.MeshPhysicalMaterial({
   roughness: 0.40, metalness: 0,
   transmission: 0.08, transparent: true, opacity: 0.97,
 })
+// Materiale Groove — smooth shading, roughness bassa per far risaltare le creste con la luce
+const grooveMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf5ead8, side: THREE.DoubleSide,
+  roughness: 0.15, metalness: 0,
+  transmission: 0.08, transparent: true, opacity: 0.95,
+  flatShading: false,
+})
 // Materiale cilindro iniziale — grigio/neutro, chiaramente "materia grezza"
 const cylinderMat = new THREE.MeshPhysicalMaterial({
   color: 0xc8c4be, side: THREE.DoubleSide,
@@ -1175,9 +1204,15 @@ const cylinderMat = new THREE.MeshPhysicalMaterial({
   transmission: 0.04, transparent: true, opacity: 0.80,
 })
 
+function pickMaterial(p) {
+  if (p.mode === 'luce') return luceMat
+  if (p.texture === 'groove') return grooveMat
+  return sculpturaMat
+}
+
 function updateLampMesh(geo, p) {
   if (lampMesh) { scene.remove(lampMesh); lampMesh.geometry.dispose() }
-  lampMesh = new THREE.Mesh(geo, p.mode === 'luce' ? luceMat : sculpturaMat)
+  lampMesh = new THREE.Mesh(geo, pickMaterial(p))
   scene.add(lampMesh)
   controls.target.set(0, p.height / 2, 0)
   baseMesh.geometry.dispose()
