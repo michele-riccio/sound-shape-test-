@@ -101,6 +101,7 @@
 
   /* ─── Effect style ─── */
   .effect-grid { display: flex; gap: 6px; }
+  .style-grid { flex-direction: column; gap: 5px; }
   .effect-btn {
     flex: 1; padding: 8px 6px; border: 1px solid var(--border); border-radius: 8px;
     text-align: center; cursor: pointer; transition: all 0.2s;
@@ -270,21 +271,21 @@
     </div>
   </div>
 
-  <!-- 4. Texture -->
+  <!-- 4. Stile -->
   <div class="section">
-    <div class="section-label">4. Texture superficie</div>
-    <div class="effect-grid">
+    <div class="section-label">4. Stile lampada</div>
+    <div class="effect-grid style-grid">
       <button class="effect-btn texture-btn active" data-texture="none">
-        &#9711; Liscia
-        <span class="effect-sub">Profilo puro</span>
+        &#9711; Minimal
+        <span class="effect-sub">Forma pura, audio protagonista</span>
       </button>
-      <button class="effect-btn texture-btn" data-texture="ribs">
-        &#10022; Costole
-        <span class="effect-sub">Scanalature verticali</span>
+      <button class="effect-btn texture-btn" data-texture="groove">
+        &#11835; Groove
+        <span class="effect-sub">Striature ondulate dall'audio</span>
       </button>
       <button class="effect-btn texture-btn" data-texture="spiral">
         &#8767; Spirale
-        <span class="effect-sub">Costole ritorte</span>
+        <span class="effect-sub">Costole con twist organico</span>
       </button>
     </div>
   </div>
@@ -400,6 +401,16 @@ const ALGO = {
   ribSharpness: 3.0,        // spigolo cresta (>1 = più tagliente)
   ribInfluence: 0.65,       // quanto l'audio amplifica la costola
   spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
+  // Groove
+  grooveCount: 36,          // numero striature verticali (più fitte)
+  grooveDepth: 2.8,         // profondità scanalatura (mm)
+  grooveSharpness: 7.0,     // nettezza bordo scanalatura (alto = tagliente)
+  grooveWaveFreq: 2.5,      // oscillazioni orizzontali su tutta l'altezza
+  grooveWaveAudio: 2.2,     // ampiezza ondulazione modulata dall'audio
+  // Minimal
+  minimalSegments: 128,     // segmenti radiali alta risoluzione
+  minimalAmplitude: 18,     // mm — onda silhouette max ±9mm (più pronunciata)
+  minimalSmoothing: 6,      // sigma gaussian (meno smooth = più reattivo)
 }
 
 let currentPreset = 'classic'
@@ -409,7 +420,15 @@ let audioData = null
 let currentGeometry = null
 
 function getParams() {
-  return { ...PRESETS[currentPreset], mode: currentEffect, texture: currentTexture }
+  const base = { ...PRESETS[currentPreset], mode: currentEffect, texture: currentTexture }
+  // Minimal: alta risoluzione poligoni + audio più pronunciato
+  if (currentTexture === 'none') {
+    base.segments = ALGO.minimalSegments
+    base.layers = Math.round(base.layers * 1.2)
+    base._sculpturaAmplitudeOverride = ALGO.minimalAmplitude
+    base._sculpturaSmoothingOverride = ALGO.minimalSmoothing
+  }
+  return base
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -459,9 +478,9 @@ function generateFallbackWave(n) {
 }
 
 // Prepara l'envelope per scultura (smooth pesante, fallback se piatto)
-function prepareSculpturaProfile(rawEnvelope, layers) {
+function prepareSculpturaProfile(rawEnvelope, layers, smoothingOverride) {
   let profile = resample(rawEnvelope, layers + 1)
-  profile = gaussianSmooth(profile, ALGO.sculpturaSmoothing)
+  profile = gaussianSmooth(profile, smoothingOverride ?? ALGO.sculpturaSmoothing)
 
   const mn = Math.min(...profile), mx = Math.max(...profile)
   const range = mx - mn
@@ -587,9 +606,19 @@ function beautyProfile(h) {
 // angle: radianti [0, 2π]
 // h: altezza normalizzata [0, 1]
 // audioVal: valore audio [0, 1]
-// texMode: 'none' | 'ribs' | 'spiral'
+// texMode: 'none' | 'ribs' | 'spiral' | 'groove'
 function textureOffset(angle, h, audioVal, texMode) {
   if (texMode === 'none') return 0
+
+  if (texMode === 'groove') {
+    const { grooveCount, grooveDepth, grooveSharpness, grooveWaveFreq, grooveWaveAudio } = ALGO
+    // Striature verticali ondulate: la fase angolare oscilla sull'altezza, amplificata dall'audio
+    const phaseShift = audioVal * grooveWaveAudio * Math.sin(h * grooveWaveFreq * Math.PI * 2)
+    // Profondità scanalatura: più intensa dove audio è forte
+    const depth = grooveDepth * (0.3 + audioVal * 0.7)
+    return depth * Math.pow(Math.max(0, Math.cos((angle + phaseShift) * grooveCount / 2)), grooveSharpness)
+  }
+
   const { ribCount, ribAmplitude, ribSharpness, ribInfluence, spiralTurns } = ALGO
   // Profondità max della costola modulata dall'audio
   const depth = ribAmplitude * (0.35 + audioVal * ribInfluence)
@@ -613,13 +642,13 @@ function createLampGeometry(envelope, params) {
   // Prepara profilo audio in base alla modalità
   let profile, rangeOriginal
   if (mode === 'scultura') {
-    ({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers))
+    ({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride))
   } else {
     ({ profile, rangeOriginal } = prepareLuceProfile(envelope, layers))
   }
 
   const outerPos = [], innerPos = []
-  const A = ALGO.sculpturaAmplitude  // ±A/2 mm max deformation in scultura
+  const A = params._sculpturaAmplitudeOverride ?? ALGO.sculpturaAmplitude  // override per stile Minimal
 
   for (let l = 0; l <= layers; l++) {
     const h = l / layers
@@ -794,14 +823,14 @@ function drawProfilePreview(envelope, params) {
 
   let profile
   if (mode === 'scultura') {
-    const res = prepareSculpturaProfile(envelope, layers)
+    const res = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride)
     profile = res.profile
   } else {
     const res = prepareLuceProfile(envelope, layers)
     profile = res.profile
   }
 
-  const A = ALGO.sculpturaAmplitude
+  const A = params._sculpturaAmplitudeOverride ?? ALGO.sculpturaAmplitude
   const maxR = baseRadius * 1.12 + A / 2 + 2
   const margin = 10
   const scaleX = (W / 2 - margin) / maxR
@@ -1284,7 +1313,7 @@ function updatePrintInfo(p, rangeOriginal) {
 function updateBadge() {
   const pre = PRESETS[currentPreset]
   const eff = currentEffect === 'scultura' ? 'Scultura' : 'Luce'
-  const texLabels = { none: '', ribs: ' · Costole', spiral: ' · Spirale' }
+  const texLabels = { none: ' · Minimal', groove: ' · Groove', spiral: ' · Spirale' }
   const texLabel = texLabels[currentTexture] || ''
   document.getElementById('vpBadge').textContent = `${pre.name} — ${eff}${texLabel}`
 }
