@@ -151,6 +151,42 @@
   .dl-btn:disabled { background: #222; color: #555; cursor: not-allowed; }
   .dl-hint { font-size: 0.6rem; color: var(--text3); text-align: center; margin-top: 8px; }
 
+  /* ─── Genera Button ─── */
+  .genera-wrap { padding: 0 20px 16px; }
+  .genera-btn {
+    width: 100%; padding: 15px; border: none; border-radius: 12px;
+    font-size: 0.92rem; font-weight: 800; cursor: not-allowed; transition: all 0.3s;
+    background: #1c1c1c; color: #444; letter-spacing: 0.04em;
+  }
+  .genera-btn.ready {
+    background: var(--accent); color: #000; cursor: pointer;
+    animation: generaPulse 2.2s ease-in-out infinite;
+  }
+  .genera-btn.ready:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .genera-btn.morphing { background: #141414; color: var(--accent); cursor: not-allowed; letter-spacing: 0.1em; }
+  .genera-btn.done { background: var(--accent); color: #000; cursor: pointer; }
+  .genera-btn.done:hover { background: var(--accent-hover); }
+  @keyframes generaPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.0); }
+    50%       { box-shadow: 0 0 24px 6px rgba(245,158,11,0.25); }
+  }
+
+  /* ─── Morph Overlay ─── */
+  .morph-overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; padding-bottom: 48px;
+    pointer-events: none; opacity: 0; transition: opacity 0.5s;
+  }
+  .morph-overlay.visible { opacity: 1; }
+  .morph-overlay-text {
+    font-size: 0.78rem; color: rgba(245,158,11,0.75); letter-spacing: 0.15em;
+    text-transform: uppercase; font-weight: 600;
+    animation: morphTextPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes morphTextPulse {
+    0%, 100% { opacity: 0.4; } 50% { opacity: 1; }
+  }
+
   /* ─── Viewport ─── */
   .viewport { flex: 1; position: relative; }
   .viewport canvas { display: block; }
@@ -282,6 +318,11 @@
     </div>
   </div>
 
+  <!-- Genera -->
+  <div class="genera-wrap">
+    <button class="genera-btn" id="btnGenera" disabled>Carica un audio per generare</button>
+  </div>
+
   <!-- Download -->
   <div class="download-section">
     <div class="stl-info" id="stlInfo"></div>
@@ -295,6 +336,9 @@
   <div class="vp-hint">Scroll = zoom &nbsp;·&nbsp; Drag = ruota</div>
   <div class="vp-badge" id="vpBadge">Classic &mdash; Scultura</div>
   <div class="vp-audio-info" id="vpAudioInfo"></div>
+  <div class="morph-overlay" id="morphOverlay">
+    <div class="morph-overlay-text">La tua voce sta plasmando la lampada&hellip;</div>
+  </div>
 </div>
 
 <script type="importmap">
@@ -874,6 +918,149 @@ function downloadBlob(blob, fn) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MORPH SYSTEM — cylinder → audio-shaped lamp
+// ═══════════════════════════════════════════════════════════════
+
+function easeOutBack(t) {
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+  const c1 = 1.70158, c3 = c1 + 1
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+}
+
+// Creates a perfect cylinder with the SAME vertex topology as createLampGeometry
+// so positions can be directly lerped between cylinder and lamp.
+function createCylinderPositions(params) {
+  const { height, diameter, segments, layers, baseFitDiameter, baseFitHeight } = params
+  const ring = segments + 1
+  const baseRadius = diameter / 2
+  const arr = new Float32Array((layers + 1) * ring * 2 * 3)
+  let idx = 0
+  for (let pass = 0; pass < 2; pass++) {  // pass 0 = outer, pass 1 = inner
+    for (let l = 0; l <= layers; l++) {
+      const h = l / layers
+      const y = h * height
+      let baseFit = 0
+      if (y < baseFitHeight) baseFit = 1.0 - y / baseFitHeight
+      const rFit = baseFit > 0 ? baseFitDiameter / 2 : baseRadius
+      const r = pass === 0 ? rFit : Math.max(2, rFit - 0.44)
+      for (let s = 0; s <= segments; s++) {
+        const angle = (s / segments) * Math.PI * 2
+        arr[idx++] = Math.cos(angle) * r
+        arr[idx++] = y
+        arr[idx++] = Math.sin(angle) * r
+      }
+    }
+  }
+  return arr
+}
+
+function updateGeneraButton() {
+  const btn = document.getElementById('btnGenera')
+  if (!btn) return
+  if (appState === 'idle') {
+    btn.textContent = 'Carica un audio per generare'
+    btn.className = 'genera-btn'; btn.disabled = true
+  } else if (appState === 'ready') {
+    btn.textContent = '✦  Genera la tua lampada'
+    btn.className = 'genera-btn ready'; btn.disabled = false
+  } else if (appState === 'morphing') {
+    btn.textContent = 'Plasmando\u2026'
+    btn.className = 'genera-btn morphing'; btn.disabled = true
+  } else if (appState === 'done') {
+    btn.textContent = '\u21ba  Rigenera'
+    btn.className = 'genera-btn done'; btn.disabled = false
+  }
+}
+
+function showMorphOverlay() { document.getElementById('morphOverlay').classList.add('visible') }
+function hideMorphOverlay()  { document.getElementById('morphOverlay').classList.remove('visible') }
+
+function fadeInLED(duration) {
+  duration = duration || 1200
+  const target = 350, t0 = performance.now()
+  function step(now) {
+    const t = Math.min((now - t0) / duration, 1)
+    const e = t * t * (3 - 2 * t)  // smoothstep
+    ledLight.intensity = target * e
+    sculpturaMat.transmission = 0.1 + 0.25 * e
+    sculpturaMat.opacity = 0.95 - 0.20 * e
+    sculpturaMat.needsUpdate = true
+    ledBulb.visible = t > 0.05
+    if (t < 1) requestAnimationFrame(step)
+    else document.getElementById('chkLight').checked = true
+  }
+  requestAnimationFrame(step)
+}
+
+function initCylinder() {
+  const p = getParams()
+  const flatEnv = new Array(600).fill(0.5)
+  const { geo } = createLampGeometry(flatEnv, p)
+  // Override positions to perfect cylinder (more dramatic before/after contrast)
+  const cylPos = createCylinderPositions(p)
+  const posAttr = geo.getAttribute('position')
+  posAttr.array.set(cylPos); posAttr.needsUpdate = true
+  geo.computeVertexNormals()
+  if (lampMesh) { scene.remove(lampMesh); lampMesh.geometry.dispose() }
+  lampMesh = new THREE.Mesh(geo, sculpturaMat)
+  scene.add(lampMesh)
+  controls.target.set(0, p.height / 2, 0)
+  controls.autoRotate = true; controls.autoRotateSpeed = 0.5
+  baseMesh.geometry.dispose()
+  baseMesh.geometry = new THREE.CylinderGeometry(p.diameter / 2 + 4, p.diameter / 2 + 7, 3, 64)
+  ledLight.position.y = p.height * 0.12
+  ledBulb.position.y  = p.height * 0.12
+  ledLight.distance   = p.diameter * 2.5
+  appState = 'idle'
+  updateGeneraButton()
+}
+
+function triggerGenerate() {
+  if (!pendingLampGeo || !pendingParams || appState === 'morphing') return
+  const p = pendingParams
+  appState = 'morphing'
+  controls.autoRotate = false
+  updateGeneraButton()
+  showMorphOverlay()
+
+  const startPositions = createCylinderPositions(p)
+  const endPositions   = new Float32Array(pendingLampGeo.getAttribute('position').array)
+
+  // Create morph mesh starting from cylinder positions
+  if (lampMesh) { scene.remove(lampMesh); lampMesh.geometry.dispose() }
+  const morphGeo = pendingLampGeo.clone()
+  const posAttr = morphGeo.getAttribute('position')
+  posAttr.array.set(startPositions); posAttr.needsUpdate = true
+  morphGeo.computeVertexNormals()
+  lampMesh = new THREE.Mesh(morphGeo, p.mode === 'luce' ? luceMat : sculpturaMat)
+  scene.add(lampMesh)
+
+  // Update scene
+  controls.target.set(0, p.height / 2, 0)
+  baseMesh.geometry.dispose()
+  baseMesh.geometry = new THREE.CylinderGeometry(p.diameter / 2 + 4, p.diameter / 2 + 7, 3, 64)
+  ledLight.position.y = p.height * 0.12
+  ledBulb.position.y  = p.height * 0.12
+  ledLight.distance   = p.diameter * 2.5
+
+  // Reset LED for clean morph reveal
+  ledLight.intensity = 0; ledBulb.visible = false
+  sculpturaMat.transmission = 0.1; sculpturaMat.opacity = 0.95; sculpturaMat.needsUpdate = true
+  luceMat.transmission = 0.08; luceMat.opacity = 0.97; luceMat.needsUpdate = true
+  document.getElementById('chkLight').checked = false
+
+  // Dispose pending (we cloned it)
+  pendingLampGeo.dispose(); pendingLampGeo = null; currentGeometry = null
+
+  morphState = {
+    startPositions, endPositions,
+    geometry: morphGeo, params: p,
+    startTime: performance.now(), duration: 2800
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // THREE.JS SCENE
 // ═══════════════════════════════════════════════════════════════
 
@@ -913,6 +1100,10 @@ const grid = new THREE.GridHelper(400, 40, 0x1a1a1a, 0x141414)
 grid.position.y = -3; scene.add(grid)
 
 let lampMesh = null
+let morphState    = null   // active morph animation
+let pendingLampGeo = null  // computed lamp geo waiting for "Genera"
+let pendingParams  = null  // params matching pendingLampGeo
+let appState = 'idle'      // 'idle' | 'ready' | 'morphing' | 'done'
 
 // Materiali — leggermente traslucenti per simulare PLA chiaro
 const sculpturaMat = new THREE.MeshPhysicalMaterial({
@@ -944,7 +1135,48 @@ function onResize() {
   renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 }
 window.addEventListener('resize', onResize); onResize()
-function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera) }
+function animate() {
+  requestAnimationFrame(animate)
+  controls.update()
+
+  if (morphState) {
+    const elapsed = performance.now() - morphState.startTime
+    const globalT  = Math.min(elapsed / morphState.duration, 1)
+    const { startPositions, endPositions, geometry, params } = morphState
+    const layers = params.layers
+    const ring   = params.segments + 1
+    const outerN = (layers + 1) * ring
+    const nVerts = startPositions.length / 3
+    const arr    = geometry.getAttribute('position').array
+
+    for (let i = 0; i < nVerts; i++) {
+      // Determine normalized height of this vertex
+      const vi = i >= outerN ? i - outerN : i
+      const h  = Math.floor(vi / ring) / layers
+      // Wave front: carves from bottom (h=0) to top (h=1)
+      const ws = h * 0.55, we = ws + 0.45
+      let lt = Math.max(0, Math.min(1, (globalT - ws) / (we - ws)))
+      lt = easeOutBack(lt)
+      const ix = i * 3
+      arr[ix]   = startPositions[ix]   + (endPositions[ix]   - startPositions[ix])   * lt
+      arr[ix+1] = startPositions[ix+1] + (endPositions[ix+1] - startPositions[ix+1]) * lt
+      arr[ix+2] = startPositions[ix+2] + (endPositions[ix+2] - startPositions[ix+2]) * lt
+    }
+    geometry.getAttribute('position').needsUpdate = true
+    geometry.computeVertexNormals()
+
+    if (globalT >= 1) {
+      morphState = null
+      appState   = 'done'
+      hideMorphOverlay()
+      fadeInLED(1200)
+      controls.autoRotate = true; controls.autoRotateSpeed = 0.5
+      updateGeneraButton()
+    }
+  }
+
+  renderer.render(scene, camera)
+}
 animate()
 
 // ═══════════════════════════════════════════════════════════════
@@ -956,25 +1188,35 @@ let currentSTLGeometry = null  // geometria vase mode per il download
 function scheduleRebuild() { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(rebuild, 80) }
 
 function rebuild() {
-  if (!audioData) return
+  if (!audioData) {
+    // No audio yet — refresh idle cylinder if preset changed
+    if (appState === 'idle') initCylinder()
+    return
+  }
   const p = getParams()
   const { geo, stlGeo, rangeOriginal } = createLampGeometry(audioData.envelope, p)
-  currentGeometry = geo
+
+  // Store for morph trigger — 3D mesh is NOT updated here
+  if (pendingLampGeo) pendingLampGeo.dispose()
+  pendingLampGeo  = geo
+  pendingParams   = { ...p }
+  currentGeometry = geo        // kept for legacy refs
   currentSTLGeometry = stlGeo
-  updateLampMesh(geo, p)
+
   updatePrintInfo(p, rangeOriginal)
   updateSTLInfo()
   updateBadge()
   drawProfilePreview(audioData.envelope, p)
 
-  // Valida audio e mostra status
   const msgs = validateAudio(audioData.duration, rangeOriginal)
   const statusEl = document.getElementById('audioStatus')
-  const vpInfo = document.getElementById('vpAudioInfo')
-  const first = msgs[0]
+  const vpInfo   = document.getElementById('vpAudioInfo')
+  const first    = msgs[0]
   statusEl.textContent = first.text
-  statusEl.className = 'audio-status ' + (first.type === 'warn' ? 'warn' : first.type === 'ok' ? 'ok' : '')
-  vpInfo.textContent = `${audioData.duration.toFixed(1)}s · dynamic range: ${(rangeOriginal * 100).toFixed(0)}%`
+  statusEl.className   = 'audio-status ' + (first.type === 'warn' ? 'warn' : first.type === 'ok' ? 'ok' : '')
+  vpInfo.textContent   = `${audioData.duration.toFixed(1)}s · dynamic range: ${(rangeOriginal * 100).toFixed(0)}%`
+
+  updateGeneraButton()
 }
 
 function updateSTLInfo() {
@@ -1065,6 +1307,7 @@ async function handleFile(file) {
     document.getElementById('uploadLabel').innerHTML = `<span class="filename">${file.name}</span>`
     document.getElementById('uploadSub').textContent = `${audioData.duration.toFixed(1)}s — Clicca per cambiare`
     drawWaveform(audioData.waveform)
+    if (appState === 'idle') appState = 'ready'
     rebuild()
   } catch (err) {
     console.error(err); alert('Errore: ' + err.message)
@@ -1107,7 +1350,9 @@ btnRec.addEventListener('click', async () => {
       audioData = await processAudioFile(new File([blob], 'rec.webm', { type: blob.type }))
       document.getElementById('uploadLabel').innerHTML = '<span class="filename">Registrazione microfono</span>'
       document.getElementById('uploadSub').textContent = audioData.duration.toFixed(1) + 's'
-      drawWaveform(audioData.waveform); rebuild()
+      drawWaveform(audioData.waveform)
+      if (appState === 'idle') appState = 'ready'
+      rebuild()
     } catch (err) { console.error(err); alert('Errore: ' + err.message) }
     recLabel.textContent = 'Registra dal microfono'
   }
@@ -1172,13 +1417,17 @@ document.getElementById('btnDownload').addEventListener('click', () => {
   downloadBlob(exportSTL(currentSTLGeometry), `SoundShape_${p.name}_${eff}${texSuffix}.stl`)
 })
 
+// ─── Genera button ───
+document.getElementById('btnGenera').addEventListener('click', triggerGenerate)
+
+// Stop auto-rotate when user manually drags
+controls.addEventListener('start', () => { if (appState !== 'morphing') controls.autoRotate = false })
+
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
 
-audioData = generateSyntheticAudio(600)
-drawWaveform(audioData.waveform)
-rebuild()
+initCylinder()
 
 </script>
 </body>
