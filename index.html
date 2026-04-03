@@ -245,14 +245,6 @@
         <div class="preset-size">70 &times; 150 mm</div>
         <div class="preset-time">~25 min scultura</div>
       </div>
-      <div class="preset-card" data-preset="grande">
-        <svg class="preset-icon" viewBox="0 0 30 80" fill="none">
-          <path d="M6 75 Q5 55 5 40 Q5 8 15 4 Q25 8 25 40 Q25 55 24 75 Z" stroke="#f59e0b" stroke-width="1.5" fill="none"/>
-        </svg>
-        <div class="preset-name">Grande</div>
-        <div class="preset-size">75 &times; 170 mm</div>
-        <div class="preset-time">~35 min scultura</div>
-      </div>
     </div>
   </div>
 
@@ -359,13 +351,6 @@ const PRESETS = {
     baseFitDiameter: 70, baseFitHeight: 6,
     printTimeScultura: 25, printTimeLuce: 190,
   },
-  grande: {
-    name: 'Grande',
-    height: 170, diameter: 75,
-    wallThickness: 2, segments: 60, layers: 170,
-    baseFitDiameter: 75, baseFitHeight: 7,
-    printTimeScultura: 35, printTimeLuce: 260,
-  },
 }
 
 // Parametri interni algoritmo — non esposti all'utente
@@ -381,11 +366,12 @@ const ALGO = {
   minDynamicRange: 0.25,    // range minimo prima del fallback
   flatZoneMm: 8,            // mm transizione base e top
   // Texture
-  ribCount: 24,             // numero costole verticali
-  ribAmplitude: 0.8,        // profondità max costola (mm)
+  ribCount: 24,             // numero costole verticali (default — varia con audio)
+  ribAmplitude: 1.2,        // profondità max costola (mm) — aumentata per più contrasto
   ribSharpness: 3.0,        // spigolo cresta (>1 = più tagliente)
   ribInfluence: 0.65,       // quanto l'audio amplifica la costola
-  spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
+  spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza (default — varia con audio)
+  spiralSegments: 192,      // NYQUIST spirale: 192/(ribCount/2=12) = 16 campioni/costola ✓
   // Groove — calibrato su benchmark "Paralume rigato v15" (STL analizzato)
   // Benchmark: 60 lamelle, fin height 14-18mm, profilo arrotondato/smooth, twist minimo
   grooveCount: 40,          // lamelle
@@ -419,13 +405,28 @@ function getParams() {
   }
   // Groove: alta risoluzione + 2D blob map audio-driven
   if (currentTexture === 'groove') {
-    // Nyquist fix: 256 segmenti → 6.4 campioni/fin per 40 lamelle
     base.segments = ALGO.grooveSegments
-    // NESSUNA compensazione diametro: rFit = preset_r = gap non-blob ✓
-    // (la vecchia compensazione era per fin outward — con blob il gap non-blob è al preset)
-    // FASE 1: usa template fisso estratto dal benchmark fisico (Paralume.3mf)
-    // FASE 2 (TODO): modula amp/sigma/posizione con l'audio della voce
     base._grooveBlobs = BENCHMARK_BLOBS
+  }
+  // Spirale: alta risoluzione + parametri personalizzati dall'audio
+  if (currentTexture === 'spiral') {
+    // Nyquist: 192 seg / (ribCount/2 = 12) = 16 campioni/costola → curva liscia
+    base.segments = ALGO.spiralSegments
+    if (audioData) {
+      const env = audioData.envelope
+      // Conta picchi nell'envelope → determina spiralTurns
+      // Voce rapida/ritmica = molti picchi = spirale fitta
+      const profS = gaussianSmooth(resample(env, 80), 2)
+      let peaks = 0
+      for (let i = 2; i < profS.length - 2; i++) {
+        if (profS[i] > profS[i-1] && profS[i] > profS[i+1] && profS[i] > 0.15) peaks++
+      }
+      // 1 picco → 0.8 giri  |  10+ picchi → 3.5 giri
+      base._spiralTurns = Math.max(0.8, Math.min(3.5, 0.5 + peaks * 0.3))
+      // Dinamica audio → ribCount: uniforme = 16 costole, molto variato = 28
+      const mn = Math.min(...env), mx = Math.max(...env)
+      base._ribCount = Math.round(16 + (mx - mn) * 12)  // [16, 28]
+    }
   }
   return base
 }
@@ -858,10 +859,13 @@ function textureOffset(angle, h, audioVal, texMode) {
     return -grooveDepth * lamellaPattern
   }
 
-  const { ribCount, ribAmplitude, ribSharpness, ribInfluence, spiralTurns } = ALGO
+  const { ribAmplitude, ribSharpness, ribInfluence } = ALGO
+  // Usa valori audio-driven se disponibili (passati da getParams), altrimenti default ALGO
+  const ribCount    = (texMode === 'spiral' && arguments[4]?._ribCount)    ?? ALGO.ribCount
+  const spiralTurns = (texMode === 'spiral' && arguments[4]?._spiralTurns) ?? ALGO.spiralTurns
   // Profondità max della costola modulata dall'audio
   const depth = ribAmplitude * (0.35 + audioVal * ribInfluence)
-  // Spirale: ruota l'angolo con l'altezza → diagonale
+  // Spirale: ruota l'angolo con l'altezza → diagonale continua
   const effectiveAngle = texMode === 'spiral'
     ? angle + h * spiralTurns * Math.PI * 2
     : angle
@@ -940,7 +944,7 @@ function createLampGeometry(envelope, params) {
         } else {
           // ══ SCULTURA / MINIMAL: raggio uniforme per layer (silhouette che respira) ══
           const deform = (audioVal - 0.5) * A * flat * (1 - baseFit)
-          const tex = textureOffset(angle, h, audioVal, params.texture) * flat * (1 - baseFit)
+          const tex = textureOffset(angle, h, audioVal, params.texture, params) * flat * (1 - baseFit)
           rO = Math.max(5, rFit + deform - tex)
         }
         const rI = Math.max(2, rO - 0.44)  // parete minima vase mode (1 linea 0.4mm nozzle)
@@ -1047,7 +1051,7 @@ function createLampGeometry(envelope, params) {
           rO = Math.max(5, rBase + silhouetteBoost - finDepth * lamellaPattern)
         } else {
           const deform = (audioVal - 0.5) * A * flat
-          const tex = textureOffset(angle, h, audioVal, params.texture) * flat
+          const tex = textureOffset(angle, h, audioVal, params.texture, params) * flat
           rO = Math.max(5, rBase + deform - tex)
         }
       } else {
