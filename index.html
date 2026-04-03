@@ -256,24 +256,9 @@
     </div>
   </div>
 
-  <!-- 3. Effetto -->
+  <!-- 3. Stile -->
   <div class="section">
-    <div class="section-label">3. Tipo di effetto</div>
-    <div class="effect-grid">
-      <button class="effect-btn active" data-effect="scultura">
-        &#10022; Scultura
-        <span class="effect-sub">La voce plasma la forma</span>
-      </button>
-      <button class="effect-btn" data-effect="luce">
-        &#9711; Luce
-        <span class="effect-sub">La voce si rivela illuminata</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- 4. Stile -->
-  <div class="section">
-    <div class="section-label">4. Stile lampada</div>
+    <div class="section-label">3. Stile lampada</div>
     <div class="effect-grid style-grid">
       <button class="effect-btn texture-btn active" data-texture="none">
         &#9711; Minimal
@@ -432,18 +417,15 @@ function getParams() {
     base._sculpturaAmplitudeOverride = ALGO.minimalAmplitude
     base._sculpturaSmoothingOverride = ALGO.minimalSmoothing
   }
-  // Groove: alta risoluzione + compensazione raggio per lamelle esterne
+  // Groove: alta risoluzione + 2D blob map audio-driven
   if (currentTexture === 'groove') {
     // Nyquist fix: 256 segmenti → 6.4 campioni/fin per 40 lamelle
     base.segments = ALGO.grooveSegments
-    // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
-    base.diameter = base.diameter - ALGO.grooveDepth * 0.65
-    base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
-    // DUNE APPROACH: audio diretto con poca smoothing → molte dune asimmetriche (come benchmark)
-    // sigma=12 → bumps Gaussiani smooth e visibili (~5-7 su 160mm)
-    // amplitude=26 → deform ±13mm (~22% del raggio base) → bumps molto pronunciati e chiari
-    base._sculpturaSmoothingOverride = 12  // ogni bump è una curva gaussian rotonda, non jagged
-    base._sculpturaAmplitudeOverride = 26  // ±13mm → bump chiari anche attraverso le 40 lamelle
+    // NESSUNA compensazione diametro: rFit = preset_r = gap non-blob ✓
+    // (la vecchia compensazione era per fin outward — con blob il gap non-blob è al preset)
+    // FASE 1: usa template fisso estratto dal benchmark fisico (Paralume.3mf)
+    // FASE 2 (TODO): modula amp/sigma/posizione con l'audio della voce
+    base._grooveBlobs = BENCHMARK_BLOBS
   }
   return base
 }
@@ -705,6 +687,147 @@ function sampleGrooveTemplate(h) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// GROOVE — BENCHMARK BLOBS (estratti da Paralume.3mf fisico)
+// 16 blob gaussiani 2D che replicano le chiazze del benchmark.
+// Coordinate: h ∈ [0,1], a in radianti [−π, π], amp ∈ [0,1]
+// sh = sigma altezza, sa = sigma angolare (rad)
+// ═══════════════════════════════════════════════════════════════
+// 8 blob per fascia × 3 fasce + 1 base = 25 blob totali.
+// Spacing angolare 45° per fascia; fascia media sfasata di 22.5° → 16 angoli unici.
+// sa=0.28 rad (16°): overlap ~37% al midpoint intra-fascia → transizione morbida e ricca.
+// sh=0.07: le 3 fasce (spaziate 0.25h) si toccano appena al 3σ → profilo verticale pulito.
+const BENCHMARK_BLOBS = [
+  // ── Fascia bassa h≈0.24 (8 blob, ogni 45°: 0°,45°,90°,135°,180°,225°,270°,315°) ──
+  { h: 0.2375, a:  0.0000, amp: 1.000, sh: 0.07, sa: 0.22 },  //   0°
+  { h: 0.2375, a:  0.7854, amp: 1.000, sh: 0.07, sa: 0.22 },  //  45°
+  { h: 0.2375, a:  1.5708, amp: 1.000, sh: 0.07, sa: 0.22 },  //  90°
+  { h: 0.2375, a:  2.3562, amp: 0.990, sh: 0.07, sa: 0.22 },  // 135°
+  { h: 0.2375, a:  3.1416, amp: 0.985, sh: 0.07, sa: 0.22 },  // 180°
+  { h: 0.2375, a: -2.3562, amp: 0.995, sh: 0.07, sa: 0.22 },  // 225°
+  { h: 0.2375, a: -1.5708, amp: 0.990, sh: 0.07, sa: 0.22 },  // 270°
+  { h: 0.2375, a: -0.7854, amp: 0.995, sh: 0.07, sa: 0.22 },  // 315°
+  // ── Fascia media h≈0.50 (8 blob, sfasati 22.5°: 22.5°,67.5°,...,337.5°) ──
+  { h: 0.5000, a:  0.3927, amp: 1.000, sh: 0.07, sa: 0.22 },  //  22.5°
+  { h: 0.5000, a:  1.1781, amp: 1.000, sh: 0.07, sa: 0.22 },  //  67.5°
+  { h: 0.5000, a:  1.9635, amp: 0.990, sh: 0.07, sa: 0.22 },  // 112.5°
+  { h: 0.5000, a:  2.7489, amp: 0.985, sh: 0.07, sa: 0.22 },  // 157.5°
+  { h: 0.5000, a: -2.7489, amp: 0.985, sh: 0.07, sa: 0.22 },  // 202.5°
+  { h: 0.5000, a: -1.9635, amp: 0.990, sh: 0.07, sa: 0.22 },  // 247.5°
+  { h: 0.5000, a: -1.1781, amp: 1.000, sh: 0.07, sa: 0.22 },  // 292.5°
+  { h: 0.5000, a: -0.3927, amp: 1.000, sh: 0.07, sa: 0.22 },  // 337.5°
+  // ── Fascia alta h≈0.75 (stessa struttura della fascia bassa → colonne allineate verticali) ──
+  { h: 0.7500, a:  0.0000, amp: 1.000, sh: 0.07, sa: 0.22 },  //   0°
+  { h: 0.7500, a:  0.7854, amp: 1.000, sh: 0.07, sa: 0.22 },  //  45°
+  { h: 0.7500, a:  1.5708, amp: 1.000, sh: 0.07, sa: 0.22 },  //  90°
+  { h: 0.7500, a:  2.3562, amp: 0.990, sh: 0.07, sa: 0.22 },  // 135°
+  { h: 0.7500, a:  3.1416, amp: 0.985, sh: 0.07, sa: 0.22 },  // 180°
+  { h: 0.7500, a: -2.3562, amp: 0.995, sh: 0.07, sa: 0.22 },  // 225°
+  { h: 0.7500, a: -1.5708, amp: 0.990, sh: 0.07, sa: 0.22 },  // 270°
+  { h: 0.7500, a: -0.7854, amp: 0.995, sh: 0.07, sa: 0.22 },  // 315°
+  // ── Base h≈0.025 (1 blob piccolo di ancoraggio) ──
+  { h: 0.0250, a: -1.5708, amp: 0.580, sh: 0.02, sa: 0.15 },
+]
+
+// ═══════════════════════════════════════════════════════════════
+// GROOVE — 2D BLOB MAP (chiazze gaussiane audio-driven)
+// ═══════════════════════════════════════════════════════════════
+
+// Hash deterministico [0,1] da un float e un seed intero
+// Garantisce angoli riproducibili per lo stesso audio
+function audioHash(val, seed) {
+  const x = Math.sin(val * 12.9898 + seed * 4.1414) * 43758.5453
+  return x - Math.floor(x)
+}
+
+// Intensità gaussiana 2D alla posizione (h, angle) della superficie cilindrica
+// h: [0,1], angle: [0, 2π], blobs: array di {h, a, amp, sh, sa}
+// Ritorna [0,1]: 0 = fuori da ogni blob, 1 = al centro di un blob forte
+function bozzaIntensity(h, angle, blobs) {
+  if (!blobs || blobs.length === 0) return 0
+  let v = 0
+  for (const b of blobs) {
+    const dh = h - b.h
+    const da = Math.atan2(Math.sin(angle - b.a), Math.cos(angle - b.a))
+    v += b.amp * Math.exp(-(dh * dh) / (2 * b.sh * b.sh) - (da * da) / (2 * b.sa * b.sa))
+  }
+  return Math.min(1, v)
+}
+
+// Estrai blob Gaussiani 2D dall'envelope audio.
+// Ogni picco energetico → un blob con posizione (h, angle) determinata dall'audio.
+// Parametri di dispersione (sigma_h, sigma_a) variano per varietà.
+function extractGrooveBlobs(envelope, layers) {
+  const TARGET = 10  // blob da generare — benchmark fisico ha 8-15 chiazze
+
+  // Resample + smooth leggero per peak detection
+  let prof = resample(envelope, layers + 1)
+  prof = gaussianSmooth(prof, 3)
+
+  // Normalizza a [0,1]
+  const mn = Math.min(...prof), mx = Math.max(...prof)
+  const range = mx - mn
+  if (range > 0.05) {
+    prof = prof.map(v => (v - mn) / range)
+  } else {
+    // Audio troppo piatto → onda organica come fallback
+    prof = generateFallbackWave(layers + 1)
+    const mn2 = Math.min(...prof), mx2 = Math.max(...prof)
+    prof = prof.map(v => (v - mn2) / (mx2 - mn2))
+  }
+
+  // ── STEP 1: raccogli TUTTI i picchi locali (finestra ±1, soglia molto bassa) ──
+  const allPeaks = []
+  for (let i = 1; i < prof.length - 1; i++) {
+    if (prof[i] >= prof[i - 1] && prof[i] >= prof[i + 1] && prof[i] > 0.05) {
+      allPeaks.push({ h: i / layers, amp: prof[i], idx: i })
+    }
+  }
+
+  // NMS leggero: rimuovi solo picchi < 4 layers di distanza (non aggressivo)
+  allPeaks.sort((a, b) => b.amp - a.amp)
+  const filtered = []
+  for (const p of allPeaks) {
+    if (!filtered.some(q => Math.abs(p.idx - q.idx) < 4)) filtered.push(p)
+    if (filtered.length >= TARGET * 2) break  // ne prendiamo il doppio per scelta
+  }
+
+  // ── STEP 2: seleziona TARGET blob bilanciando altezza e ampiezza ──
+  // Strategia: dividi [0,1] in TARGET fasce di altezza e prendi il picco migliore per fascia
+  const blobH = []
+  const bandSize = 1.0 / TARGET
+  for (let b = 0; b < TARGET; b++) {
+    const lo = b * bandSize, hi = (b + 1) * bandSize
+    // Picchi nella fascia corrente (o il più vicino se la fascia è vuota)
+    const inBand = filtered.filter(p => p.h >= lo && p.h < hi)
+    if (inBand.length > 0) {
+      // Prendi il più energetico
+      blobH.push(inBand.reduce((best, p) => p.amp > best.amp ? p : best))
+    } else {
+      // Fascia vuota: crea un blob sintetico a metà fascia con ampiezza interpolata
+      const hMid = lo + bandSize / 2
+      const idx = Math.round(hMid * layers)
+      blobH.push({ h: hMid, amp: prof[idx] > 0 ? prof[idx] : 0.4, idx })
+    }
+  }
+
+  // ── STEP 3: angoli jittered-uniformi con jitter ristretto (±sector/4) ──
+  // Garantisce copertura completa del cilindro: nessun "lato scoperto"
+  // Jitter ristretto a ±(360°/TARGET/4) → max gap teorico ≤ 360°/TARGET × 1.5
+  const jitterRange = (Math.PI * 2 / TARGET) * 0.4  // ±40% del settore
+  return blobH.map((p, k) => {
+    const sectorBase = (k / TARGET) * Math.PI * 2
+    const jitter = (audioHash(p.amp, k + 50) - 0.5) * 2 * jitterRange
+    return {
+      h:   p.h,
+      a:   sectorBase + jitter,
+      amp: Math.max(0.3, p.amp),            // ampiezza minima 0.3 → tutti i blob visibili
+      sh:  0.05 + audioHash(p.amp, k + 100) * 0.06,   // sigma_h: 0.05–0.11
+      sa:  Math.PI / 7 + audioHash(p.amp, k + 200) * Math.PI / 9,  // sigma_a: 26°–46°
+    }
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════
 // TEXTURE — costole verticali o spiralate, audio-reattive
 // ═══════════════════════════════════════════════════════════════
 
@@ -794,11 +917,32 @@ function createLampGeometry(envelope, params) {
       const angle = (s / segments) * Math.PI * 2
 
       if (mode === 'scultura') {
-        // ══ SCULTURA: raggio uniforme per layer (silhouette che respira) ══
-        // (audioVal - 0.5) centra l'onda a 0, produce ± A/2 mm di deformazione
-        const deform = (audioVal - 0.5) * A * flat * (1 - baseFit)
-        const tex = textureOffset(angle, h, audioVal, params.texture) * flat * (1 - baseFit)
-        const rO = Math.max(5, rFit + deform - tex)
+        let rO
+        if (params.texture === 'groove') {
+          // ══ GROOVE: mappa 2D blob gaussiani ══
+          // bI_raw: intensità blob pura (non faded) — usata per la silhouette
+          // bI: faded con finPresence — usata solo per la profondità lamelle
+          const finPresence = flat * (1 - baseFit)
+          const bI_raw = bozzaIntensity(h, angle, params._grooveBlobs)
+          const bI     = bI_raw * finPresence
+          // Profilo lamella flat-top (identico alla formula groove originale)
+          const { grooveCount, grooveDepth, grooveSharpness, grooveAmplify, grooveTwist } = ALGO
+          const twist = h * grooveTwist * Math.PI * 2
+          const baseCos = Math.pow(Math.max(0, Math.cos((angle + twist) * grooveCount)), grooveSharpness)
+          const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
+          // Lamelle profonde nelle chiazze, quasi assenti fuori (0.15→1.0): max contrasto
+          const finDepth = grooveDepth * (0.15 * finPresence + bI * 0.85)
+          // Silhouette si gonfia nelle chiazze usando bI_raw (non faded al top!)
+          // → la rim alta mantiene la forma "lobata" visibile nella zenitale Bambu
+          const silhouetteBoost = bI_raw * 13
+          // rFit = raggio base cilindrico del preset (nessuna compensazione — il preset è il gap non-blob)
+          rO = Math.max(5, rFit + silhouetteBoost - finDepth * lamellaPattern)
+        } else {
+          // ══ SCULTURA / MINIMAL: raggio uniforme per layer (silhouette che respira) ══
+          const deform = (audioVal - 0.5) * A * flat * (1 - baseFit)
+          const tex = textureOffset(angle, h, audioVal, params.texture) * flat * (1 - baseFit)
+          rO = Math.max(5, rFit + deform - tex)
+        }
         const rI = Math.max(2, rO - 0.44)  // parete minima vase mode (1 linea 0.4mm nozzle)
         outerPos.push(Math.cos(angle) * rO, y, Math.sin(angle) * rO)
         innerPos.push(Math.cos(angle) * rI, y, Math.sin(angle) * rI)
@@ -889,9 +1033,23 @@ function createLampGeometry(envelope, params) {
       const angle = (s / segments) * Math.PI * 2
       let rO
       if (mode === 'scultura') {
-        const deform = (audioVal - 0.5) * A * flat
-        const tex = textureOffset(angle, h, audioVal, params.texture) * flat
-        rO = Math.max(5, rBase + deform - tex)
+        if (params.texture === 'groove') {
+          // ── GROOVE STL: 2D blob map (identico al display) ──
+          const finPresence = flat  // STL non ha baseFit (zona base è solida nel disco fondo)
+          const bI_raw = bozzaIntensity(h, angle, params._grooveBlobs)
+          const bI     = bI_raw * finPresence
+          const { grooveCount, grooveDepth, grooveSharpness, grooveAmplify, grooveTwist } = ALGO
+          const twist = h * grooveTwist * Math.PI * 2
+          const baseCos = Math.pow(Math.max(0, Math.cos((angle + twist) * grooveCount)), grooveSharpness)
+          const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
+          const finDepth = grooveDepth * (0.15 * finPresence + bI * 0.85)
+          const silhouetteBoost = bI_raw * 13
+          rO = Math.max(5, rBase + silhouetteBoost - finDepth * lamellaPattern)
+        } else {
+          const deform = (audioVal - 0.5) * A * flat
+          const tex = textureOffset(angle, h, audioVal, params.texture) * flat
+          rO = Math.max(5, rBase + deform - tex)
+        }
       } else {
         rO = rBase
       }
@@ -1432,14 +1590,13 @@ function updateSTLInfo() {
 }
 
 function updatePrintInfo(p, rangeOriginal) {
-  const isScultura = p.mode === 'scultura'
   const maxDia = p.diameter + ALGO.sculpturaAmplitude + 2
   const fitsX = maxDia <= 180, fitsZ = p.height <= 180
   const fitsAll = fitsX && fitsZ
-  const printMin = isScultura ? p.printTimeScultura : p.printTimeLuce
+  const printMin = p.printTimeScultura
   const h = Math.floor(printMin / 60), m = Math.round(printMin % 60)
   const timeStr = h > 0 ? `~${h}h ${m}min` : `~${m} min`
-  const wT = isScultura ? 0.44 : p.wallThickness
+  const wT = 0.44  // scultura: vase mode single wall 0.44mm
   const rO = maxDia / 2
   const vol = Math.PI * ((rO ** 2) - ((rO - wT) ** 2)) * p.height * 1.1
   const grams = (vol / 1000) * 1.24
@@ -1456,10 +1613,9 @@ function updatePrintInfo(p, rangeOriginal) {
 
 function updateBadge() {
   const pre = PRESETS[currentPreset]
-  const eff = currentEffect === 'scultura' ? 'Scultura' : 'Luce'
   const texLabels = { none: ' · Minimal', groove: ' · Groove', spiral: ' · Spirale' }
   const texLabel = texLabels[currentTexture] || ''
-  document.getElementById('vpBadge').textContent = `${pre.name} — ${eff}${texLabel}`
+  document.getElementById('vpBadge').textContent = `${pre.name} — Scultura${texLabel}`
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1583,15 +1739,6 @@ document.querySelectorAll('.preset-card').forEach(card => {
   })
 })
 
-document.querySelectorAll('.effect-btn:not(.texture-btn)').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.effect-btn:not(.texture-btn)').forEach(b => b.classList.remove('active'))
-    btn.classList.add('active')
-    currentEffect = btn.dataset.effect
-    scheduleRebuild()
-  })
-})
-
 document.querySelectorAll('.texture-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.texture-btn').forEach(b => b.classList.remove('active'))
@@ -1616,9 +1763,8 @@ document.getElementById('chkLight').addEventListener('change', e => {
 document.getElementById('btnDownload').addEventListener('click', () => {
   if (!currentSTLGeometry) return
   const p = PRESETS[currentPreset]
-  const eff = currentEffect === 'scultura' ? 'SCULTURA' : 'LUCE'
   const texSuffix = currentTexture !== 'none' ? `_${currentTexture.toUpperCase()}` : ''
-  downloadBlob(exportSTL(currentSTLGeometry), `SoundShape_${p.name}_${eff}${texSuffix}.stl`)
+  downloadBlob(exportSTL(currentSTLGeometry), `SoundShape_${p.name}_SCULTURA${texSuffix}.stl`)
 })
 
 // ─── Genera button ───
