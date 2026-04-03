@@ -439,10 +439,9 @@ function getParams() {
     // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
     base.diameter = base.diameter - ALGO.grooveDepth * 0.65
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
-    // FORMULA CONSTANT-TIP: A = grooveDepth * grooveWaveAudio
-    // → valleys variano ±A/2 = ±3.9mm, tip radius rimane costante = rFit + grooveDepth
-    // (uguale al benchmark: tip ~59mm costante, valleys 46-52mm variabili)
-    base._sculpturaAmplitudeOverride = ALGO.grooveDepth * ALGO.grooveWaveAudio
+    // Bozzi dalla silhouette: A grande → 3 bozzi molto visibili come nel benchmark
+    // Template range 0.92 × blend 72% × A=16mm → ±5.3mm deform radius (benchmark-like)
+    base._sculpturaAmplitudeOverride = 16
   }
   return base
 }
@@ -648,22 +647,29 @@ function beautyProfile(h) {
 //   0.0 = valle piena (fin a piena profondità → lampada più stretta)
 // Due bozzi principali al ~35% e ~68% altezza — forma organica tipo zucca/fiasco
 // Questi valori definiscono la FORMA del bozzo (è sempre lì), l'audio ne scala l'ampiezza.
+// ATTENZIONE ALL'ARCHITETTURA CORRETTA (da screenshot benchmark):
+// ● I bozzi sono nella SILHOUETTE ESTERNA (fin tips + valleys si muovono INSIEME)
+// ● Le fin hanno profondità COSTANTE — non variano con l'altezza
+// ● Il profilo template guida il `deform` della silhouette, non la fin depth
+// ● 3 bozzi evenly spaced come nel benchmark "Paralume rigato v15"
+// Template: 1.0 = massima espansione (bozzo), 0.0 = massima contrazione (strozzatura)
 const GROOVE_BUBBLE_TEMPLATE = [
-  0.00,  // h=0.00 – base (piatta, incastro nel supporto)
-  0.05,  // h=0.09 – sale lentamente dalla base
-  0.22,  // h=0.18
-  0.68,  // h=0.27 – risalita verso primo bozzo
-  0.95,  // h=0.36 ← PRIMO BOZZO — picco (rientro fin minimo)
-  0.78,  // h=0.45 – discesa verso strozzatura
-  0.08,  // h=0.55 ← STROZZATURA — valle profonda tra i bozzi (rientro fin massimo)
-  0.42,  // h=0.64 – risalita verso secondo bozzo
-  0.92,  // h=0.73 ← SECONDO BOZZO — picco leggermente più basso del primo
-  0.52,  // h=0.82 – discesa
-  0.14,  // h=0.91 – rastrematura verso top
-  0.02,  // h=1.00 – top (quasi chiuso)
+  0.00,  // h=0.00 – base (controllata da baseFit, non rilevante qui)
+  0.15,  // h=0.08 – inizio risalita
+  0.78,  // h=0.17 – rampa rapida verso primo bozzo
+  0.97,  // h=0.25 ← PRIMO BOZZO — picco (sezione bassa)
+  0.72,  // h=0.33 – discesa verso prima strozzatura
+  0.05,  // h=0.42 ← PRIMA STROZZATURA — pinch minimo
+  0.68,  // h=0.50 – risalita verso secondo bozzo
+  0.96,  // h=0.58 ← SECONDO BOZZO — picco (sezione centrale)
+  0.70,  // h=0.67 – discesa verso seconda strozzatura
+  0.05,  // h=0.75 ← SECONDA STROZZATURA — pinch minimo
+  0.70,  // h=0.83 – risalita verso terzo bozzo
+  0.88,  // h=0.92 ← TERZO BOZZO — picco (sezione alta, leggermente ridotto)
+  0.55,  // h=1.00 – top (lievemente aperto, non stretto)
 ]
-// Nota math: template range ≈ 0.95-0.08 = 0.87
-// Con blend 72% template: range audioVal ≈ 0.63 → deform ±2.5mm ≈ benchmark ±1.8-2.5mm
+// Math: template range ≈ 0.97-0.05 = 0.92 → con blend 72%: audioVal range ≈ 0.66
+// Con A=16mm: deform range = 0.66*16 = 10.6mm → radius varia ±5.3mm ≈ benchmark
 
 // Campiona GROOVE_BUBBLE_TEMPLATE con interpolazione lineare per h ∈ [0, 1]
 function sampleGrooveTemplate(h) {
@@ -697,24 +703,13 @@ function textureOffset(angle, h, audioVal, texMode) {
     const baseCos = Math.pow(Math.max(0, Math.cos((angle + twist) * grooveCount)), grooveSharpness)
     const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
 
-    // ── FORMULA CONSTANT-TIP (uguale al benchmark) ───────────────
-    // Il profilo `audioVal` viene da prepareGrooveProfile:
-    //   = 65% template bozzi + 35% audio canzone
-    //   → audioVal≈1 su bozzature, audioVal≈0 tra i bozzi
-    //
-    // Deform nel geometry loop: deform = (audioVal - 0.5) * A
-    //   → valley si sposta outward sui bozzi (+A/2), inward tra i bozzi (-A/2)
-    //
-    // Per tenere il TIP costante: tip = rFit + deform + depth = rFit + grooveDepth
-    //   → depth = grooveDepth - deform = grooveDepth * (1 + waveAudio*(0.5 - audioVal))
-    //
-    // A = grooveDepth * grooveWaveAudio (settato in getParams come _sculpturaAmplitudeOverride)
-    // Verifica: audioVal=1 → depth=13*(1-0.6*0.5)=9.1mm, deform=+3.9mm, tip=rFit+13mm ✓
-    //           audioVal=0 → depth=13*(1+0.6*0.5)=16.9mm, deform=-3.9mm, tip=rFit+13mm ✓
-    const depth = grooveDepth * (1.0 + grooveWaveAudio * (0.5 - audioVal))
+    // PROFONDITÀ COSTANTE — i bozzi nascono dal deform della SILHOUETTE (rFit varia)
+    // Il template in prepareGrooveProfile guida audioVal → deform = (audioVal-0.5)*A
+    // Fin tips e valleys si muovono INSIEME seguendo il profilo a 3 bozzi del benchmark
+    // → stesso comportamento visivo del benchmark "Paralume rigato v15"
 
-    // NEGATIVO → lamelle sporgono verso l'esterno
-    return -depth * lamellaPattern
+    // NEGATIVO → lamelle sporgono verso l'esterno con profondità uniforme
+    return -grooveDepth * lamellaPattern
   }
 
   const { ribCount, ribAmplitude, ribSharpness, ribInfluence, spiralTurns } = ALGO
@@ -768,8 +763,10 @@ function createLampGeometry(envelope, params) {
     let baseFit = 0
     if (y < baseFitHeight) baseFit = 1.0 - y / baseFitHeight
 
-    // Profilo organico base
-    const bMult = 1.0 + (beautyProfile(h) - 1.0) * (1 - baseFit)
+    // Profilo base: groove usa base CILINDRICA (1.0), i bozzi vengono solo dal template
+    // Altri stili usano beautyProfile organico (gourd shape)
+    const bpMult = (params.texture === 'groove') ? 1.0 : beautyProfile(h)
+    const bMult = 1.0 + (bpMult - 1.0) * (1 - baseFit)
     const rFit = baseFit > 0 ? baseFitDiameter / 2 : baseRadius * bMult
 
     const audioVal = profile[l]  // [0, 1]
@@ -864,7 +861,8 @@ function createLampGeometry(envelope, params) {
     else if (y > height - fz) flat = (height - y) / fz
     flat = Math.max(0, Math.min(1, flat))
 
-    const bMult = beautyProfile(h)
+    // Groove: base cilindrica, altri stili: gourd organico
+    const bMult = (params.texture === 'groove') ? 1.0 : beautyProfile(h)
     const rBase = baseRadius * bMult
     const audioVal = profile[l]
 
@@ -963,7 +961,8 @@ function drawProfilePreview(envelope, params) {
     flat = Math.max(0, Math.min(1, flat))
     let baseFit = 0
     if (yMm < baseFitHeight) baseFit = 1.0 - yMm / baseFitHeight
-    const bMult = 1.0 + (beautyProfile(h) - 1.0) * (1 - baseFit)
+    const bpMult2 = (params.texture === 'groove') ? 1.0 : beautyProfile(h)
+    const bMult = 1.0 + (bpMult2 - 1.0) * (1 - baseFit)
     const rFit = baseFit > 0 ? baseFitDiameter / 2 : baseRadius * bMult
     const audioVal = profile[l]
     let r
