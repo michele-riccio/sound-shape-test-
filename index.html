@@ -402,11 +402,12 @@ const ALGO = {
   ribInfluence: 0.65,       // quanto l'audio amplifica la costola
   spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
   // Groove
-  grooveCount: 30,          // numero striature verticali (fitte come benchmark)
-  grooveDepth: 6.0,         // profondità scanalatura (mm) — visibile ma non aggressiva
-  grooveSharpness: 5.0,     // creste nette ma organiche
-  grooveWaveFreq: 2.5,      // oscillazioni verticali su tutta l'altezza
-  grooveWaveAudio: 0.7,     // ridotto per evitare artefatti geometrici
+  grooveCount: 50,          // lamelle fitte come nel benchmark
+  grooveDepth: 5.5,         // altezza radiale lamella (mm)
+  grooveSharpness: 14.0,    // lamelle sottilissime e appuntite
+  grooveWaveFreq: 2.5,      // non usato nella nuova formula
+  grooveWaveAudio: 0.5,     // audio amplifica profondità lamella
+  grooveTwist: 0.12,        // rotazione costante su tutta l'altezza (~12%) — effetto petalo
   // Minimal
   minimalSegments: 128,     // segmenti radiali alta risoluzione
   minimalAmplitude: 18,     // mm — onda silhouette max ±9mm (più pronunciata)
@@ -428,9 +429,12 @@ function getParams() {
     base._sculpturaAmplitudeOverride = ALGO.minimalAmplitude
     base._sculpturaSmoothingOverride = ALGO.minimalSmoothing
   }
-  // Groove: alta risoluzione per smooth normals che catturano le creste
+  // Groove: alta risoluzione + compensazione raggio per lamelle esterne
   if (currentTexture === 'groove') {
     base.segments = ALGO.minimalSegments  // 128 segmenti
+    // Riduce raggio base di metà grooveDepth → le lamelle portano il diametro al valore preset
+    base.diameter = base.diameter - ALGO.grooveDepth * 0.8
+    base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.8
   }
   return base
 }
@@ -615,21 +619,24 @@ function textureOffset(angle, h, audioVal, texMode) {
   if (texMode === 'none') return 0
 
   if (texMode === 'groove') {
-    const { grooveCount, grooveDepth, grooveSharpness, grooveWaveFreq, grooveWaveAudio } = ALGO
+    const { grooveCount, grooveDepth, grooveSharpness, grooveWaveAudio, grooveTwist } = ALGO
 
-    // Costole verticali fisse — NO inclinazione angolare (causa artefatti)
-    const ribPattern = Math.pow(Math.max(0, Math.cos(angle * grooveCount / 2)), grooveSharpness)
+    // Leggera inclinazione COSTANTE (non modulata da audio → nessun artefatto)
+    // Dà l'effetto "petalo" del benchmark — le lamelle si inclinano uniformemente
+    const twist = h * grooveTwist * Math.PI * 2
 
-    // "Carattere" unico per costola: basato sulla posizione angolare, stabile verticalmente
-    // → alcune costole naturalmente più profonde, altre più superficiali
-    const costolaSeed = Math.sin(angle * grooveCount / 2)  // [-1, 1] diverso per ogni costola
+    // Lamella appuntita con inclinazione costante
+    const lamellaPattern = Math.pow(
+      Math.max(0, Math.cos((angle + twist) * grooveCount / 2)),
+      grooveSharpness
+    )
 
-    // Profondità: variazione verticale (wave) + carattere per costola (seed) + audio
-    const wave = Math.sin(h * grooveWaveFreq * Math.PI * 2)
-    const profMod = 0.42 + 0.22 * wave
-      + 0.18 * costolaSeed                                    // asimmetria per costola
-      + audioVal * grooveWaveAudio * (0.30 + 0.22 * costolaSeed)  // audio amplifica il carattere
-    return grooveDepth * Math.max(0.05, profMod) * ribPattern
+    // Profondità lamella modulata dall'audio: più intenso = lamelle più pronunciate
+    const depth = grooveDepth * (0.5 + audioVal * grooveWaveAudio)
+
+    // NEGATIVO → quando viene sottratto in rO = rFit + deform - tex
+    // il risultato è rFit + deform + |depth| → lamelle sporgono verso l'esterno
+    return -depth * lamellaPattern
   }
 
   const { ribCount, ribAmplitude, ribSharpness, ribInfluence, spiralTurns } = ALGO
