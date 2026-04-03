@@ -439,9 +439,11 @@ function getParams() {
     // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
     base.diameter = base.diameter - ALGO.grooveDepth * 0.65
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
-    // Ampiezza calibrata via simulazione Python vs benchmark STL:
-    // A=9mm → deform ±3.1mm → tip diameter varia 13mm ← match benchmark (6.5mm tip range)
-    base._sculpturaAmplitudeOverride = 9
+    // DUNE APPROACH: audio diretto con poca smoothing → molte dune asimmetriche (come benchmark)
+    // sigma basso = molte dune piccole organiche; sigma alto = poche onde grandi
+    // Ampiezza 10mm → dune visibili senza essere troppo aggressive
+    base._sculpturaSmoothingOverride = 5   // ~10mm per duna → 12-16 dune su 160mm
+    base._sculpturaAmplitudeOverride = 10
   }
   return base
 }
@@ -726,9 +728,8 @@ function textureOffset(angle, h, audioVal, texMode) {
     const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
 
     // PROFONDITÀ COSTANTE — i bozzi nascono dal deform della SILHOUETTE (rFit varia)
-    // Il template in prepareGrooveProfile guida audioVal → deform = (audioVal-0.5)*A
-    // Fin tips e valleys si muovono INSIEME seguendo il profilo a 3 bozzi del benchmark
-    // → stesso comportamento visivo del benchmark "Paralume rigato v15"
+    // Audio con sigma=5 → molte dune piccole asimmetriche, come dune nel deserto del benchmark
+    // Fin tips e valleys si muovono INSIEME seguendo il profilo audio grezzo
 
     // NEGATIVO → lamelle sporgono verso l'esterno con profondità uniforme
     return -grooveDepth * lamellaPattern
@@ -757,12 +758,9 @@ function createLampGeometry(envelope, params) {
   // Prepara profilo audio in base alla modalità
   let profile, rangeOriginal
   if (mode === 'scultura') {
-    if (params.texture === 'groove') {
-      // Groove: template benchmark + audio blend → bozzi fissi con intensità variabile
-      ;({ profile, rangeOriginal } = prepareGrooveProfile(envelope, layers))
-    } else {
-      ;({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride))
-    }
+    // DUNE APPROACH: tutti i modi usano prepareSculpturaProfile con sigma dal params
+    // Per groove: sigma=5 (da getParams) → 12-16 dune piccole asimmetriche come benchmark
+    ;({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride))
   } else {
     ;({ profile, rangeOriginal } = prepareLuceProfile(envelope, layers))
   }
@@ -955,9 +953,8 @@ function drawProfilePreview(envelope, params) {
 
   let profile
   if (mode === 'scultura') {
-    const res = params.texture === 'groove'
-      ? prepareGrooveProfile(envelope, layers)
-      : prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride)
+    // DUNE APPROACH: sigma=5 per groove (da getParams) → molte dune asimmetriche
+    const res = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride)
     profile = res.profile
   } else {
     const res = prepareLuceProfile(envelope, layers)
