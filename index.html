@@ -367,8 +367,8 @@ const ALGO = {
   flatZoneMm: 8,            // mm transizione base e top
   // Texture
   ribCount: 24,             // numero costole verticali (default — varia con audio)
-  ribAmplitude: 1.2,        // profondità max costola (mm) — aumentata per più contrasto
-  ribSharpness: 3.0,        // spigolo cresta (>1 = più tagliente)
+  ribAmplitude: 2.0,        // profondità max costola (mm) — aumentata per compensare profilo morbido
+  ribSharpness: 1.2,        // profilo morbido (cos^1.2): cresta arrotondata, niente fish-scale
   ribInfluence: 0.65,       // quanto l'audio amplifica la costola
   spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza (default — varia con audio)
   spiralSegments: 192,      // NYQUIST spirale: 192/(ribCount/2=12) = 16 campioni/costola ✓
