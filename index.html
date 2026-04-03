@@ -409,6 +409,7 @@ const ALGO = {
   grooveWaveFreq: 2.5,      // non usato nella nuova formula
   grooveWaveAudio: 0.60,    // audio → lunghezza fin
   grooveTwist: 0.008,       // twist quasi zero (~2.9° totale) — appena percettibile
+  grooveSegments: 256,      // NYQUIST: serve 4× lamelle → 60×4=240, arrotondato a 256
   // Minimal
   minimalSegments: 128,     // segmenti radiali alta risoluzione
   minimalAmplitude: 18,     // mm — onda silhouette max ±9mm (più pronunciata)
@@ -433,12 +434,12 @@ function getParams() {
   // Groove: alta risoluzione + compensazione raggio per lamelle esterne
   if (currentTexture === 'groove') {
     base.segments = ALGO.minimalSegments  // 128 segmenti
+    // Nyquist fix: 256 segmenti per risolvere correttamente 60 lamelle (4.3 campioni/fin)
+    base.segments = ALGO.grooveSegments
     // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
-    // Con fin da 14mm, sottraiamo 14 * 0.65 ≈ 9mm dal raggio base
     base.diameter = base.diameter - ALGO.grooveDepth * 0.65
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
     // Silhouette audio moderata: ±2.5mm sul valley radius (matches benchmark: valley varia ~5mm)
-    // Le fin rendono l'audio visibile attraverso la loro lunghezza variabile
     base._sculpturaAmplitudeOverride = 5
   }
   return base
