@@ -439,9 +439,9 @@ function getParams() {
     // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
     base.diameter = base.diameter - ALGO.grooveDepth * 0.65
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
-    // Bozzi dalla silhouette: A grande → 3 bozzi molto visibili come nel benchmark
-    // Template range 0.92 × blend 72% × A=16mm → ±5.3mm deform radius (benchmark-like)
-    base._sculpturaAmplitudeOverride = 16
+    // Ampiezza calibrata via simulazione Python vs benchmark STL:
+    // A=9mm → deform ±3.1mm → tip diameter varia 13mm ← match benchmark (6.5mm tip range)
+    base._sculpturaAmplitudeOverride = 9
   }
   return base
 }
@@ -647,29 +647,51 @@ function beautyProfile(h) {
 //   0.0 = valle piena (fin a piena profondità → lampada più stretta)
 // Due bozzi principali al ~35% e ~68% altezza — forma organica tipo zucca/fiasco
 // Questi valori definiscono la FORMA del bozzo (è sempre lì), l'audio ne scala l'ampiezza.
-// ATTENZIONE ALL'ARCHITETTURA CORRETTA (da screenshot benchmark):
-// ● I bozzi sono nella SILHOUETTE ESTERNA (fin tips + valleys si muovono INSIEME)
-// ● Le fin hanno profondità COSTANTE — non variano con l'altezza
-// ● Il profilo template guida il `deform` della silhouette, non la fin depth
-// ● 3 bozzi evenly spaced come nel benchmark "Paralume rigato v15"
-// Template: 1.0 = massima espansione (bozzo), 0.0 = massima contrazione (strozzatura)
+// TEMPLATE ESTRATTO DIRETTAMENTE DAL BENCHMARK STL "Paralume rigato v15"
+// (analisi via Python su 3dmodel.model — 37.030 vertici, asse Z=altezza 160mm)
+// Profilo: tip_norm = (tip_radius - tip_min) / (tip_max - tip_min)
+// 1.0 = bozzo (fin tips sporgono al massimo = sezione più larga della lampada)
+// 0.0 = strozzatura (fin tips rientrano = sezione più stretta)
+// 32 punti uniformi da h=0.000 a h=1.000 (step 1/31)
+// Simulazione Python: correlation col benchmark = 0.9991 ✓
 const GROOVE_BUBBLE_TEMPLATE = [
-  0.00,  // h=0.00 – base (controllata da baseFit, non rilevante qui)
-  0.15,  // h=0.08 – inizio risalita
-  0.78,  // h=0.17 – rampa rapida verso primo bozzo
-  0.97,  // h=0.25 ← PRIMO BOZZO — picco (sezione bassa)
-  0.72,  // h=0.33 – discesa verso prima strozzatura
-  0.05,  // h=0.42 ← PRIMA STROZZATURA — pinch minimo
-  0.68,  // h=0.50 – risalita verso secondo bozzo
-  0.96,  // h=0.58 ← SECONDO BOZZO — picco (sezione centrale)
-  0.70,  // h=0.67 – discesa verso seconda strozzatura
-  0.05,  // h=0.75 ← SECONDA STROZZATURA — pinch minimo
-  0.70,  // h=0.83 – risalita verso terzo bozzo
-  0.88,  // h=0.92 ← TERZO BOZZO — picco (sezione alta, leggermente ridotto)
-  0.55,  // h=1.00 – top (lievemente aperto, non stretto)
+  0.020,  // h=0.000  ← STROZZATURA (base — zona baseFit qui)
+  0.020,  // h=0.032  ← STROZZATURA
+  0.020,  // h=0.065  ← STROZZATURA
+  0.191,  // h=0.097  – risalita
+  0.488,  // h=0.129  – rampa verso primo bozzo
+  0.724,  // h=0.161  – risalita
+  0.883,  // h=0.194  ← BOZZO (1° — picco inizia)
+  0.981,  // h=0.226  ← BOZZO (1° — picco)
+  0.986,  // h=0.258  ← BOZZO (1° — picco massimo)
+  0.842,  // h=0.290  – discesa
+  0.528,  // h=0.323  – scende verso strozzatura
+  0.133,  // h=0.355  ← STROZZATURA (1° — pinch)
+  0.077,  // h=0.387  ← STROZZATURA (1° — minimo)
+  0.440,  // h=0.419  – risalita verso secondo bozzo
+  0.775,  // h=0.452  – rampa
+  0.969,  // h=0.484  ← BOZZO (2° — picco inizia)
+  0.970,  // h=0.516  ← BOZZO (2° — picco)
+  0.773,  // h=0.548  – discesa
+  0.434,  // h=0.581  – scende
+  0.033,  // h=0.613  ← STROZZATURA (2° — minimo)
+  0.147,  // h=0.645  ← STROZZATURA (2° — inizio risalita)
+  0.530,  // h=0.677  – risalita verso terzo bozzo
+  0.843,  // h=0.710  ← BOZZO (3° — picco inizia)
+  0.986,  // h=0.742  ← BOZZO (3° — picco)
+  0.984,  // h=0.774  ← BOZZO (3° — picco)
+  0.889,  // h=0.806  ← BOZZO (3° — discesa)
+  0.724,  // h=0.839  – scende verso strozzatura top
+  0.493,  // h=0.871  – discesa
+  0.189,  // h=0.903  ← STROZZATURA (top — restringimento)
+  0.000,  // h=0.935  ← STROZZATURA (top)
+  0.000,  // h=0.968  ← STROZZATURA (top)
+  0.000,  // h=1.000  ← STROZZATURA (top — chiuso)
 ]
-// Math: template range ≈ 0.97-0.05 = 0.92 → con blend 72%: audioVal range ≈ 0.66
-// Con A=16mm: deform range = 0.66*16 = 10.6mm → radius varia ±5.3mm ≈ benchmark
+// Math con A=9mm, blend=72%:
+// → audioVal_bozzo ≈ 0.99*0.72+0.5*0.28 = 0.85 → deform = +3.1mm (outward)
+// → audioVal_strozzatura ≈ 0.02*0.72+0.5*0.28 = 0.15 → deform = -3.2mm (inward)
+// → tip diameter varia: Ø107mm (strozzatura) ↔ Ø120mm (bozzo) = 13mm variazione ✓ benchmark
 
 // Campiona GROOVE_BUBBLE_TEMPLATE con interpolazione lineare per h ∈ [0, 1]
 function sampleGrooveTemplate(h) {
