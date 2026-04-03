@@ -403,13 +403,14 @@ const ALGO = {
   spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
   // Groove — calibrato su benchmark "Paralume rigato v15" (STL analizzato)
   // Benchmark: 60 lamelle, fin height 14-18mm, profilo arrotondato/smooth, twist minimo
-  grooveCount: 40,          // lamelle (da 60 → 40: spacing 6mm → meno riccio, petalo più largo)
+  grooveCount: 40,          // lamelle
   grooveDepth: 13,          // altezza radiale fin (mm)
-  grooveSharpness: 2.0,     // fin larga/petalo (cos^2) → gap visibile tra lamelle dal top view
-  grooveWaveFreq: 2.5,      // non usato nella nuova formula
+  grooveSharpness: 1.0,     // base profile (1 = triangolare, pre-clipping)
+  grooveAmplify: 3.5,       // FLAT-TOP: clamp(cos * amplify, 0, 1) → fin larga e piatta al tip
+  grooveWaveFreq: 2.5,      // non usato
   grooveWaveAudio: 0.60,    // audio → lunghezza fin
-  grooveTwist: 0.008,       // twist quasi zero (~2.9° totale) — appena percettibile
-  grooveSegments: 256,      // NYQUIST: 256/40 = 6.4 campioni/fin → ottima risoluzione
+  grooveTwist: 0.008,       // twist quasi zero (~2.9° totale)
+  grooveSegments: 256,      // NYQUIST: 256/40 = 6.4 campioni/fin
   // Minimal
   minimalSegments: 128,     // segmenti radiali alta risoluzione
   minimalAmplitude: 18,     // mm — onda silhouette max ±9mm (più pronunciata)
@@ -625,23 +626,21 @@ function textureOffset(angle, h, audioVal, texMode) {
   if (texMode === 'none') return 0
 
   if (texMode === 'groove') {
-    const { grooveCount, grooveDepth, grooveSharpness, grooveWaveAudio, grooveTwist } = ALGO
+    const { grooveCount, grooveDepth, grooveSharpness, grooveAmplify, grooveWaveAudio, grooveTwist } = ALGO
 
-    // Leggera inclinazione COSTANTE (non modulata da audio → nessun artefatto)
-    // Dà l'effetto "petalo" del benchmark — le lamelle si inclinano uniformemente
+    // Inclinazione costante minima — solo un tocco organico
     const twist = h * grooveTwist * Math.PI * 2
 
-    // Lamella appuntita con inclinazione costante
-    const lamellaPattern = Math.pow(
-      Math.max(0, Math.cos((angle + twist) * grooveCount)),
-      grooveSharpness
-    )
+    // FLAT-TOP profile: clamp(cos^n * amplify, 0, 1)
+    // → sommità piatta, spalle ripide, gap netto tra lamelle
+    // Con grooveAmplify=3.5: fin occupa ~70% dello spazio angolare, gap ~30%
+    const baseCos = Math.pow(Math.max(0, Math.cos((angle + twist) * grooveCount)), grooveSharpness)
+    const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
 
-    // Profondità lamella modulata dall'audio: più intenso = lamelle più pronunciate
+    // Profondità modulata dall'audio
     const depth = grooveDepth * (0.5 + audioVal * grooveWaveAudio)
 
-    // NEGATIVO → quando viene sottratto in rO = rFit + deform - tex
-    // il risultato è rFit + deform + |depth| → lamelle sporgono verso l'esterno
+    // NEGATIVO → lamelle sporgono verso l'esterno
     return -depth * lamellaPattern
   }
 
