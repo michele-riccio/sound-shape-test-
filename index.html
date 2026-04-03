@@ -401,13 +401,14 @@ const ALGO = {
   ribSharpness: 3.0,        // spigolo cresta (>1 = più tagliente)
   ribInfluence: 0.65,       // quanto l'audio amplifica la costola
   spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
-  // Groove
-  grooveCount: 50,          // lamelle verticali (valore diretto — no /2 nella formula)
-  grooveDepth: 3.5,         // altezza radiale lamella (mm) — ridotta perché lamelle più fitte
-  grooveSharpness: 11.0,    // lamelle sottili e definite
+  // Groove — calibrato su benchmark "Paralume rigato v15" (STL analizzato)
+  // Benchmark: 60 lamelle, fin height 14-18mm, outer tip Ø~116mm, inner valley varia con audio
+  grooveCount: 60,          // lamelle — matches benchmark
+  grooveDepth: 14,          // altezza radiale fin (mm) — benchmark misura 14-18mm
+  grooveSharpness: 14.0,    // fin sottili e appuntite (benchmark: gap visibile tra le lamelle)
   grooveWaveFreq: 2.5,      // non usato nella nuova formula
-  grooveWaveAudio: 0.65,    // audio amplifica profondità lamella (silhouette quasi piatta → audio sulle lamelle)
-  grooveTwist: 0.018,       // inclinazione minima — quasi verticale, solo un tocco organico
+  grooveWaveAudio: 0.65,    // audio → lunghezza fin (base si muove, tip rimane costante)
+  grooveTwist: 0.028,       // twist ~10° totale su 200mm — benchmark ~5-10°
   // Minimal
   minimalSegments: 128,     // segmenti radiali alta risoluzione
   minimalAmplitude: 18,     // mm — onda silhouette max ±9mm (più pronunciata)
@@ -432,11 +433,12 @@ function getParams() {
   // Groove: alta risoluzione + compensazione raggio per lamelle esterne
   if (currentTexture === 'groove') {
     base.segments = ALGO.minimalSegments  // 128 segmenti
-    // Riduce raggio base → le lamelle sporgenti portano il diametro al valore preset
-    base.diameter = base.diameter - ALGO.grooveDepth * 0.7
-    base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.7
-    // Silhouette quasi cilindrica: i bozzi audio non devono sommergere le lamelle
-    // L'audio viene espresso dalla profondità delle lamelle (grooveWaveAudio), non dalla silhouette
+    // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
+    // Con fin da 14mm, sottraiamo 14 * 0.65 ≈ 9mm dal raggio base
+    base.diameter = base.diameter - ALGO.grooveDepth * 0.65
+    base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
+    // Silhouette audio moderata: ±2.5mm sul valley radius (matches benchmark: valley varia ~5mm)
+    // Le fin rendono l'audio visibile attraverso la loro lunghezza variabile
     base._sculpturaAmplitudeOverride = 5
   }
   return base
