@@ -406,7 +406,7 @@ const ALGO = {
   grooveDepth: 3.5,         // altezza radiale lamella (mm) — ridotta perché lamelle più fitte
   grooveSharpness: 11.0,    // lamelle sottili e definite
   grooveWaveFreq: 2.5,      // non usato nella nuova formula
-  grooveWaveAudio: 0.45,    // audio amplifica profondità lamella
+  grooveWaveAudio: 0.65,    // audio amplifica profondità lamella (silhouette quasi piatta → audio sulle lamelle)
   grooveTwist: 0.018,       // inclinazione minima — quasi verticale, solo un tocco organico
   // Minimal
   minimalSegments: 128,     // segmenti radiali alta risoluzione
@@ -435,6 +435,9 @@ function getParams() {
     // Riduce raggio base → le lamelle sporgenti portano il diametro al valore preset
     base.diameter = base.diameter - ALGO.grooveDepth * 0.7
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.7
+    // Silhouette quasi cilindrica: i bozzi audio non devono sommergere le lamelle
+    // L'audio viene espresso dalla profondità delle lamelle (grooveWaveAudio), non dalla silhouette
+    base._sculpturaAmplitudeOverride = 5
   }
   return base
 }
