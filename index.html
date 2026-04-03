@@ -434,16 +434,15 @@ function getParams() {
   }
   // Groove: alta risoluzione + compensazione raggio per lamelle esterne
   if (currentTexture === 'groove') {
-    base.segments = ALGO.minimalSegments  // 128 segmenti
-    // Nyquist fix: 256 segmenti per risolvere correttamente 60 lamelle (4.3 campioni/fin)
+    // Nyquist fix: 256 segmenti → 6.4 campioni/fin per 40 lamelle
     base.segments = ALGO.grooveSegments
     // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
     base.diameter = base.diameter - ALGO.grooveDepth * 0.65
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
-    // Smoothing molto alto → bubble sinusoidali morbide (~25mm/ciclo come benchmark)
-    base._sculpturaSmoothingOverride = 22
-    // Silhouette audio: ±4mm valley (benchmark ±1.8mm ma nostra lampada è più piccola)
-    base._sculpturaAmplitudeOverride = 8
+    // FORMULA CONSTANT-TIP: A = grooveDepth * grooveWaveAudio
+    // → valleys variano ±A/2 = ±3.9mm, tip radius rimane costante = rFit + grooveDepth
+    // (uguale al benchmark: tip ~59mm costante, valleys 46-52mm variabili)
+    base._sculpturaAmplitudeOverride = ALGO.grooveDepth * ALGO.grooveWaveAudio
   }
   return base
 }
@@ -512,6 +511,33 @@ function prepareSculpturaProfile(rawEnvelope, layers, smoothingOverride) {
   // Normalizza a [0, 1]
   const mn2 = Math.min(...profile), mx2 = Math.max(...profile)
   return { profile: profile.map(v => (v - mn2) / Math.max(mx2 - mn2, 1e-6)), rangeOriginal: range }
+}
+
+// Profilo groove: template bozzi (forma fissa) + audio (intensità variabile)
+// Ritorna profile [0-1] con 0=valle piena, 1=bozzatura massima
+// La FORMA dei bozzi è fissa (template benchmark), l'audio ne scala l'ampiezza
+function prepareGrooveProfile(rawEnvelope, layers) {
+  // Audio smooth pesante → curva morbida senza artefatti
+  let audioProfile = resample(rawEnvelope, layers + 1)
+  audioProfile = gaussianSmooth(audioProfile, 28)
+
+  // Normalizza audio a [0, 1] — fallback a 0.5 se piatto
+  const mn = Math.min(...audioProfile), mx = Math.max(...audioProfile)
+  const range = mx - mn
+  const audioNorm = range > 0.05
+    ? audioProfile.map(v => (v - mn) / range)
+    : audioProfile.map(() => 0.5)
+
+  // Blend: 72% template (forma benchmark sempre presente) + 28% audio (personalizzazione)
+  // → anche con audio piatto si vedono i 2 bozzi tipici del benchmark
+  // Con template range ≈ 0.87 e blend 72%: audioVal range ≈ 0.63 → deform ±2.5mm (come benchmark)
+  const profile = Array.from({ length: layers + 1 }, (_, l) => {
+    const h = l / layers
+    const templateBubble = sampleGrooveTemplate(h)
+    return templateBubble * 0.72 + audioNorm[l] * 0.28
+  })
+
+  return { profile, rangeOriginal: range }
 }
 
 // Prepara l'envelope per lithophane (sigma basso, mantiene dettaglio)
@@ -615,6 +641,39 @@ function beautyProfile(h) {
   return 1.0 + belly - taper + baseFlare
 }
 
+// ── GROOVE BUBBLE TEMPLATE ──────────────────────────────────────
+// Profilo bozzature ispirato al benchmark "Paralume rigato v15"
+// Valori [0-1] per altezza normalizzata h∈[0-1]:
+//   1.0 = picco bozzo (fin poco profonda → lampada visibilmente più larga)
+//   0.0 = valle piena (fin a piena profondità → lampada più stretta)
+// Due bozzi principali al ~35% e ~68% altezza — forma organica tipo zucca/fiasco
+// Questi valori definiscono la FORMA del bozzo (è sempre lì), l'audio ne scala l'ampiezza.
+const GROOVE_BUBBLE_TEMPLATE = [
+  0.00,  // h=0.00 – base (piatta, incastro nel supporto)
+  0.05,  // h=0.09 – sale lentamente dalla base
+  0.22,  // h=0.18
+  0.68,  // h=0.27 – risalita verso primo bozzo
+  0.95,  // h=0.36 ← PRIMO BOZZO — picco (rientro fin minimo)
+  0.78,  // h=0.45 – discesa verso strozzatura
+  0.08,  // h=0.55 ← STROZZATURA — valle profonda tra i bozzi (rientro fin massimo)
+  0.42,  // h=0.64 – risalita verso secondo bozzo
+  0.92,  // h=0.73 ← SECONDO BOZZO — picco leggermente più basso del primo
+  0.52,  // h=0.82 – discesa
+  0.14,  // h=0.91 – rastrematura verso top
+  0.02,  // h=1.00 – top (quasi chiuso)
+]
+// Nota math: template range ≈ 0.95-0.08 = 0.87
+// Con blend 72% template: range audioVal ≈ 0.63 → deform ±2.5mm ≈ benchmark ±1.8-2.5mm
+
+// Campiona GROOVE_BUBBLE_TEMPLATE con interpolazione lineare per h ∈ [0, 1]
+function sampleGrooveTemplate(h) {
+  const t = GROOVE_BUBBLE_TEMPLATE
+  const pos = Math.max(0, Math.min(1, h)) * (t.length - 1)
+  const lo = Math.floor(pos)
+  const hi = Math.min(lo + 1, t.length - 1)
+  return t[lo] + (t[hi] - t[lo]) * (pos - lo)
+}
+
 // ═══════════════════════════════════════════════════════════════
 // TEXTURE — costole verticali o spiralate, audio-reattive
 // ═══════════════════════════════════════════════════════════════
@@ -635,13 +694,24 @@ function textureOffset(angle, h, audioVal, texMode) {
 
     // FLAT-TOP profile: clamp(cos^n * amplify, 0, 1)
     // → sommità piatta, spalle ripide, gap netto tra lamelle
-    // Con grooveAmplify=3.5: fin occupa ~70% dello spazio angolare, gap ~30%
     const baseCos = Math.pow(Math.max(0, Math.cos((angle + twist) * grooveCount)), grooveSharpness)
     const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
 
-    // FORMULA BENCHMARK: fin più profonde quando audio è quieto, meno quando è forte
-    // → i tip rimangono quasi costanti (come nel benchmark), le bubble nascono dalla base
-    const depth = grooveDepth * (1.0 - audioVal * grooveWaveAudio * 0.5)
+    // ── FORMULA CONSTANT-TIP (uguale al benchmark) ───────────────
+    // Il profilo `audioVal` viene da prepareGrooveProfile:
+    //   = 65% template bozzi + 35% audio canzone
+    //   → audioVal≈1 su bozzature, audioVal≈0 tra i bozzi
+    //
+    // Deform nel geometry loop: deform = (audioVal - 0.5) * A
+    //   → valley si sposta outward sui bozzi (+A/2), inward tra i bozzi (-A/2)
+    //
+    // Per tenere il TIP costante: tip = rFit + deform + depth = rFit + grooveDepth
+    //   → depth = grooveDepth - deform = grooveDepth * (1 + waveAudio*(0.5 - audioVal))
+    //
+    // A = grooveDepth * grooveWaveAudio (settato in getParams come _sculpturaAmplitudeOverride)
+    // Verifica: audioVal=1 → depth=13*(1-0.6*0.5)=9.1mm, deform=+3.9mm, tip=rFit+13mm ✓
+    //           audioVal=0 → depth=13*(1+0.6*0.5)=16.9mm, deform=-3.9mm, tip=rFit+13mm ✓
+    const depth = grooveDepth * (1.0 + grooveWaveAudio * (0.5 - audioVal))
 
     // NEGATIVO → lamelle sporgono verso l'esterno
     return -depth * lamellaPattern
@@ -670,9 +740,14 @@ function createLampGeometry(envelope, params) {
   // Prepara profilo audio in base alla modalità
   let profile, rangeOriginal
   if (mode === 'scultura') {
-    ({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride))
+    if (params.texture === 'groove') {
+      // Groove: template benchmark + audio blend → bozzi fissi con intensità variabile
+      ;({ profile, rangeOriginal } = prepareGrooveProfile(envelope, layers))
+    } else {
+      ;({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride))
+    }
   } else {
-    ({ profile, rangeOriginal } = prepareLuceProfile(envelope, layers))
+    ;({ profile, rangeOriginal } = prepareLuceProfile(envelope, layers))
   }
 
   const outerPos = [], innerPos = []
@@ -860,7 +935,9 @@ function drawProfilePreview(envelope, params) {
 
   let profile
   if (mode === 'scultura') {
-    const res = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride)
+    const res = params.texture === 'groove'
+      ? prepareGrooveProfile(envelope, layers)
+      : prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride)
     profile = res.profile
   } else {
     const res = prepareLuceProfile(envelope, layers)
