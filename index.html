@@ -440,8 +440,10 @@ function getParams() {
     // Riduce raggio base → le fin sporgenti portano il diametro esterno al valore preset
     base.diameter = base.diameter - ALGO.grooveDepth * 0.65
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
-    // Silhouette audio moderata: ±2.5mm sul valley radius (matches benchmark: valley varia ~5mm)
-    base._sculpturaAmplitudeOverride = 5
+    // Smoothing molto alto → bubble sinusoidali morbide (~25mm/ciclo come benchmark)
+    base._sculpturaSmoothingOverride = 22
+    // Silhouette audio: ±4mm valley (benchmark ±1.8mm ma nostra lampada è più piccola)
+    base._sculpturaAmplitudeOverride = 8
   }
   return base
 }
@@ -637,8 +639,9 @@ function textureOffset(angle, h, audioVal, texMode) {
     const baseCos = Math.pow(Math.max(0, Math.cos((angle + twist) * grooveCount)), grooveSharpness)
     const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
 
-    // Profondità modulata dall'audio
-    const depth = grooveDepth * (0.5 + audioVal * grooveWaveAudio)
+    // FORMULA BENCHMARK: fin più profonde quando audio è quieto, meno quando è forte
+    // → i tip rimangono quasi costanti (come nel benchmark), le bubble nascono dalla base
+    const depth = grooveDepth * (1.0 - audioVal * grooveWaveAudio * 0.5)
 
     // NEGATIVO → lamelle sporgono verso l'esterno
     return -depth * lamellaPattern
