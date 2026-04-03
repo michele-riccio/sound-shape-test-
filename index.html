@@ -402,11 +402,11 @@ const ALGO = {
   ribInfluence: 0.65,       // quanto l'audio amplifica la costola
   spiralTurns: 1.5,         // rotazioni spirale su tutta l'altezza
   // Groove
-  grooveCount: 38,          // lamelle verticali continue
-  grooveDepth: 4.5,         // altezza radiale lamella (mm)
-  grooveSharpness: 9.0,     // lamelle definite ma non spike
+  grooveCount: 50,          // lamelle verticali (valore diretto — no /2 nella formula)
+  grooveDepth: 3.5,         // altezza radiale lamella (mm) — ridotta perché lamelle più fitte
+  grooveSharpness: 11.0,    // lamelle sottili e definite
   grooveWaveFreq: 2.5,      // non usato nella nuova formula
-  grooveWaveAudio: 0.5,     // audio amplifica profondità lamella
+  grooveWaveAudio: 0.45,    // audio amplifica profondità lamella
   grooveTwist: 0.018,       // inclinazione minima — quasi verticale, solo un tocco organico
   // Minimal
   minimalSegments: 128,     // segmenti radiali alta risoluzione
@@ -432,9 +432,9 @@ function getParams() {
   // Groove: alta risoluzione + compensazione raggio per lamelle esterne
   if (currentTexture === 'groove') {
     base.segments = ALGO.minimalSegments  // 128 segmenti
-    // Riduce raggio base di metà grooveDepth → le lamelle portano il diametro al valore preset
-    base.diameter = base.diameter - ALGO.grooveDepth * 0.8
-    base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.8
+    // Riduce raggio base → le lamelle sporgenti portano il diametro al valore preset
+    base.diameter = base.diameter - ALGO.grooveDepth * 0.7
+    base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.7
   }
   return base
 }
@@ -627,7 +627,7 @@ function textureOffset(angle, h, audioVal, texMode) {
 
     // Lamella appuntita con inclinazione costante
     const lamellaPattern = Math.pow(
-      Math.max(0, Math.cos((angle + twist) * grooveCount / 2)),
+      Math.max(0, Math.cos((angle + twist) * grooveCount)),
       grooveSharpness
     )
 
