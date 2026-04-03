@@ -440,10 +440,10 @@ function getParams() {
     base.diameter = base.diameter - ALGO.grooveDepth * 0.65
     base.baseFitDiameter = base.baseFitDiameter - ALGO.grooveDepth * 0.65
     // DUNE APPROACH: audio diretto con poca smoothing → molte dune asimmetriche (come benchmark)
-    // sigma basso = molte dune piccole organiche; sigma alto = poche onde grandi
-    // Ampiezza 10mm → dune visibili senza essere troppo aggressive
-    base._sculpturaSmoothingOverride = 5   // ~10mm per duna → 12-16 dune su 160mm
-    base._sculpturaAmplitudeOverride = 10
+    // sigma=12 → bumps Gaussiani smooth e visibili (~5-7 su 160mm)
+    // amplitude=26 → deform ±13mm (~22% del raggio base) → bumps molto pronunciati e chiari
+    base._sculpturaSmoothingOverride = 12  // ogni bump è una curva gaussian rotonda, non jagged
+    base._sculpturaAmplitudeOverride = 26  // ±13mm → bump chiari anche attraverso le 40 lamelle
   }
   return base
 }
@@ -728,8 +728,8 @@ function textureOffset(angle, h, audioVal, texMode) {
     const lamellaPattern = Math.min(1, baseCos * grooveAmplify)
 
     // PROFONDITÀ COSTANTE — i bozzi nascono dal deform della SILHOUETTE (rFit varia)
-    // Audio con sigma=5 → molte dune piccole asimmetriche, come dune nel deserto del benchmark
-    // Fin tips e valleys si muovono INSIEME seguendo il profilo audio grezzo
+    // Audio con sigma=12 → ~6 bumps Gaussiani lisci; amplitude=26 → ±13mm molto pronunciati
+    // Fin tips e valleys si muovono INSIEME — silhouette "respira" in sincronia con l'audio
 
     // NEGATIVO → lamelle sporgono verso l'esterno con profondità uniforme
     return -grooveDepth * lamellaPattern
@@ -758,8 +758,7 @@ function createLampGeometry(envelope, params) {
   // Prepara profilo audio in base alla modalità
   let profile, rangeOriginal
   if (mode === 'scultura') {
-    // DUNE APPROACH: tutti i modi usano prepareSculpturaProfile con sigma dal params
-    // Per groove: sigma=5 (da getParams) → 12-16 dune piccole asimmetriche come benchmark
+    // GROOVE: sigma=12 → ~6 bump smooth Gaussiani; amplitude=26 → ±13mm molto pronunciati
     ;({ profile, rangeOriginal } = prepareSculpturaProfile(envelope, layers, params._sculpturaSmoothingOverride))
   } else {
     ;({ profile, rangeOriginal } = prepareLuceProfile(envelope, layers))
