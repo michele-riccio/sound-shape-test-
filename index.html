@@ -404,8 +404,8 @@ const ALGO = {
   // Groove — calibrato su benchmark "Paralume rigato v15" (STL analizzato)
   // Benchmark: 60 lamelle, fin height 14-18mm, profilo arrotondato/smooth, twist minimo
   grooveCount: 60,          // lamelle — matches benchmark
-  grooveDepth: 11,          // altezza radiale fin (mm)
-  grooveSharpness: 7.0,     // fin definite e separate, profilo ancora arrotondato ma leggibili
+  grooveDepth: 14,          // altezza radiale fin (mm) — oversampling compensato: 14 * 0.85 ≈ 12mm reali STL
+  grooveSharpness: 3.0,     // CRITICO: sharpness bassa → fin larga → campionata da più vertici (85% vs 1%)
   grooveWaveFreq: 2.5,      // non usato nella nuova formula
   grooveWaveAudio: 0.60,    // audio → lunghezza fin
   grooveTwist: 0.008,       // twist quasi zero (~2.9° totale) — appena percettibile
